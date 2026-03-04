@@ -331,10 +331,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Timetable Viewer HTTP server")
     parser.add_argument("-p", "--port", type=int, default=DEFAULT_PORT,
                         help=f"Port to listen on (default: {DEFAULT_PORT})")
+    parser.add_argument("--host", default="127.0.0.1",
+                        help="Bind address (default: 127.0.0.1, use 0.0.0.0 for all interfaces)")
+    parser.add_argument("--no-open", action="store_true",
+                        help="Do not open browser on start")
     args = parser.parse_args()
 
-    with http.server.HTTPServer(("127.0.0.1", args.port), Handler) as srv:
-        url = f"http://localhost:{args.port}/timetable.html"
-        print(f"Serving at {url}")
-        webbrowser.open(url)
+    with http.server.HTTPServer((args.host, args.port), Handler) as srv:
+        display_host = "localhost" if args.host in ("127.0.0.1", "0.0.0.0", "") else args.host
+        url = f"http://{display_host}:{args.port}/timetable.html"
+        print(f"Serving at {url}  (bound to {args.host})")
+        if not args.no_open:
+            webbrowser.open(url)
         srv.serve_forever()

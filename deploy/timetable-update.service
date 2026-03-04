@@ -1,0 +1,9 @@
+[Unit]
+Description=Timetable Auto-Update from GitHub
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/timetable/update.sh
+User=root

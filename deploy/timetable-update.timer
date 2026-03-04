@@ -1,0 +1,11 @@
+[Unit]
+Description=Check GitHub for timetable updates every 10-15 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=12min
+RandomizedDelaySec=3min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

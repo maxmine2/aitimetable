@@ -1,0 +1,21 @@
+[Unit]
+Description=Timetable Analysis Web Server
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/timetable
+ExecStart=/opt/timetable/.venv/bin/python serve.py --no-open
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+# Hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/timetable
+
+[Install]
+WantedBy=multi-user.target

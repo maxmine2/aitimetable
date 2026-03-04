@@ -332,6 +332,10 @@
     outline: none;
     max-width: 280px;
   }
+  .filter-bar select#hf-specialty {
+    width: 260px;
+    min-width: 260px;
+  }
   .filter-bar select:focus { border-color: #2d5ca6; }
   .filter-bar .add-btn {
     padding: 6px 16px;
@@ -547,18 +551,20 @@
     max-width: 1500px;
     margin: 0 auto;
     align-items: flex-start;
+    justify-content: center;
   }
   .app-main {
     flex: 1;
     min-width: 0;
+    max-width: 1000px;
   }
 
   /* ---------- preset sidebar ---------- */
   .preset-sidebar {
     display: none;
-    width: 280px;
+    width: 300px;
     flex-shrink: 0;
-    margin: 12px 16px 32px 0;
+    margin: 12px 0 32px 16px;
     animation: fadeIn .25s ease-out;
   }
   .preset-sidebar.show { display: block; }
@@ -666,6 +672,7 @@
 
   @media (max-width: 900px) {
     .app-body { flex-direction: column; }
+    .app-main { max-width: 100%; }
     .preset-sidebar {
       width: 100%;
       margin: 0 0 16px;
@@ -675,6 +682,9 @@
       position: static;
       max-height: none;
     }
+    .gm-body { flex-direction: column; }
+    .gm-left { width: 100%; border-right: none; border-bottom: 1px solid #eee; max-height: 40vh; }
+    .gm-right { max-height: 50vh; }
   }
 
   /* ---------- share bar ---------- */
@@ -738,7 +748,10 @@
     gap: 10px;
     font-weight: 600;
     color: #fff;
+    cursor: pointer;
+    transition: filter .15s;
   }
+  .result-card-header:hover { filter: brightness(1.08); }
   .result-card.rank-1 .result-card-header { background: linear-gradient(135deg, #f1c40f, #f39c12); }
   .result-card.rank-2 .result-card-header { background: linear-gradient(135deg, #bdc3c7, #95a5a6); }
   .result-card.rank-3 .result-card-header { background: linear-gradient(135deg, #cd7f32, #a0522d); }
@@ -784,8 +797,8 @@
   .groups-modal-overlay.open { display: flex; }
   .groups-modal {
     background: #fff; border-radius: 10px;
-    width: 90vw; max-width: 720px;
-    max-height: 80vh; display: flex; flex-direction: column;
+    width: 94vw; max-width: 1260px;
+    max-height: 88vh; display: flex; flex-direction: column;
     box-shadow: 0 12px 48px rgba(0,0,0,.25);
     animation: fadeInScale .2s ease-out;
   }
@@ -800,7 +813,20 @@
   }
   .gm-close:hover { color: #e74c3c; }
   .gm-body {
-    padding: 12px 20px 20px; overflow-y: auto; flex: 1;
+    padding: 0; overflow: hidden; flex: 1;
+    display: flex; gap: 0;
+  }
+  .gm-left {
+    width: 380px; flex-shrink: 0; border-right: 1px solid #eee;
+    overflow-y: auto; padding: 12px 16px 20px;
+  }
+  .gm-right {
+    flex: 1; min-width: 0; overflow-y: auto; padding: 12px 20px 20px;
+    background: #fafbfd;
+  }
+  .gm-right-placeholder {
+    color: #bbb; text-align: center; padding: 60px 20px;
+    font-size: 14px; line-height: 1.6;
   }
   .gm-tabs {
     display: flex; gap: 0; border-bottom: 2px solid #eee; margin-bottom: 14px;
@@ -921,10 +947,124 @@
   .mini-day-table .mini-slot-num { font-weight: 700; color: #2d5ca6; white-space: nowrap; width: 60px; }
   .mini-day-table tr.mini-conflict td { background: #fdedec; }
 
+  /* travel rows between mini-day slots */
+  .mini-travel-row td {
+    font-size: 11px; color: #7b8fa8; background: #f4f7fb;
+    padding: 2px 8px; border-bottom: 1px solid #eee;
+    text-align: center; font-style: italic;
+  }
+  .mini-travel-row.mini-travel-warn td { background: #fff8f0; color: #c0560a; font-weight: 600; }
+  .mini-arrival-info {
+    display: inline-block; font-size: 10px; color: #6b7d9a;
+    margin-left: 6px; vertical-align: middle;
+  }
+
+  /* pattern tab styles */
+  .pattern-section { margin-bottom: 16px; }
+  .pattern-section h4 { font-size: 13px; font-weight: 700; color: #1e3a6e; margin: 0 0 8px; }
+  .pattern-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; margin-bottom: 6px;
+    background: #fff; border: 1px solid #e8ecf0; border-radius: 6px;
+    transition: box-shadow .12s;
+  }
+  .pattern-row:hover { box-shadow: 0 1px 6px rgba(45,92,166,.1); }
+  .pattern-count {
+    font-size: 13px; font-weight: 700; color: #2d5ca6;
+    min-width: 60px; text-align: center;
+  }
+  .pattern-grid {
+    display: flex; gap: 2px;
+  }
+  .pg-cell {
+    width: 32px; height: 28px; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 600; color: #999;
+    background: #f0f2f5; border: 1px solid #e0e3e7;
+    transition: transform .1s;
+  }
+  .pg-cell.pg-occupied { background: #b8d4f0; color: #1e3a6e; border-color: #8bb8df; }
+  .pg-cell.pg-event { background: #2d5ca6; color: #fff; border-color: #1e3a6e; }
+  .pg-cell.pg-conflict { background: #e74c3c; color: #fff; border-color: #c0392b; }
+  .pattern-chips {
+    display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px;
+    max-height: 26px; overflow: hidden; transition: max-height .2s;
+  }
+  .pattern-chips.expanded { max-height: none; }
+  .pattern-expand {
+    font-size: 11px; color: #2d5ca6; cursor: pointer;
+    border: none; background: none; padding: 2px 0;
+  }
+  .pattern-expand:hover { text-decoration: underline; }
+
+  /* group sections inside combined groups tab */
+  .gm-group-section { margin-bottom: 12px; }
+  .gm-section-header {
+    font-size: 13px; font-weight: 700; padding: 6px 10px;
+    border-radius: 4px; margin-bottom: 4px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .gm-section-header .tab-count {
+    font-size: 11px; font-weight: 600; opacity: .8;
+    background: rgba(255,255,255,.5); padding: 1px 6px; border-radius: 8px;
+  }
+  .gc-green-header  { background: #e6f4ea; color: #1a6e3a; }
+  .gc-orange-header { background: #fef3e0; color: #b45309; }
+  .gc-red-header    { background: #fde8e8; color: #b91c1c; }
+
+  /* anchor-point bar chart */
+  .anchor-bar-wrap { margin-top: 8px; }
+  .anchor-bar-wrap h5 { font-size: 11px; color: #1e3a6e; margin: 0 0 4px; font-weight: 700; }
+  .anchor-bar {
+    display: flex; height: 18px; border-radius: 4px; overflow: hidden;
+    border: 1px solid #d0d5dc;
+  }
+  .ab-seg {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 600; color: #fff;
+    min-width: 18px; transition: flex .2s;
+  }
+  .ab-seg.ab-1 { background: #3498db; }
+  .ab-seg.ab-2 { background: #e67e22; }
+  .ab-seg.ab-3 { background: #9b59b6; }
+  .ab-seg.ab-4 { background: #27ae60; }
+  .ab-seg.ab-5 { background: #95a5a6; }
+  .anchor-legend {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; font-size: 10px; color: #666;
+  }
+  .anchor-legend .al-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 3px;
+    vertical-align: middle;
+  }
+
+  /* fatigue histogram */
+  .fatigue-wrap { margin-top: 8px; }
+  .fatigue-wrap h5 { font-size: 11px; color: #1e3a6e; margin: 0 0 4px; font-weight: 700; }
+  .fatigue-bars {
+    display: flex; align-items: flex-end; gap: 6px; height: 56px;
+    padding-top: 16px;
+  }
+  .fatigue-bar {
+    flex: 1; min-width: 30px; border-radius: 3px 3px 0 0;
+    background: #b8d4f0; position: relative;
+    display: flex; align-items: flex-start; justify-content: center;
+    font-size: 0; font-weight: 600; color: #1e3a6e;
+    transition: height .2s;
+  }
+  .fatigue-bar::after {
+    content: attr(data-count);
+    position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+    font-size: 10px; font-weight: 700; color: #1e3a6e; white-space: nowrap;
+  }
+  .fatigue-labels {
+    display: flex; gap: 3px; font-size: 9px; color: #999; text-align: center;
+  }
+  .fatigue-labels span { flex: 1; min-width: 24px; }
+
   /* ---------- heatmap slot highlights ---------- */
-  td.heatmap-cell.slot-rank-1 { outline: 3px solid #f1c40f; outline-offset: -2px; position: relative; }
-  td.heatmap-cell.slot-rank-2 { outline: 3px solid #bdc3c7; outline-offset: -2px; position: relative; }
-  td.heatmap-cell.slot-rank-3 { outline: 3px solid #cd7f32; outline-offset: -2px; position: relative; }
+  td.heatmap-cell.slot-rank-1 { outline: 3px solid #f1c40f; outline-offset: -2px; position: relative; cursor: pointer; }
+  td.heatmap-cell.slot-rank-2 { outline: 3px solid #bdc3c7; outline-offset: -2px; position: relative; cursor: pointer; }
+  td.heatmap-cell.slot-rank-3 { outline: 3px solid #cd7f32; outline-offset: -2px; position: relative; cursor: pointer; }
   td.heatmap-cell .rank-overlay {
     position: absolute;
     top: 2px; right: 2px;
@@ -1059,7 +1199,7 @@
 </div><!-- /.app-body -->
 
 <div class="footer">
-  Version 1.1. Made with ❤️ by Claude Opus, Claude Sonnet, Gemini 3.1 and others under control of Max Budko. Data source: <a href="https://table.nsu.ru/" target="_blank" rel="noopener">table.nsu.ru</a>. <br>
+  Version 1.2. Made with ❤️ by Claude Opus, Claude Sonnet, Gemini 3.1 and others under control of Max Budko. Data source: <a href="https://table.nsu.ru/" target="_blank" rel="noopener">table.nsu.ru</a>. <br>
 </div>
 
 <!-- Groups modal overlay -->
@@ -1069,7 +1209,12 @@
       <h3 id="gm-title">Группы</h3>
       <button class="gm-close" onclick="closeGroupsModal()">&times;</button>
     </div>
-    <div class="gm-body" id="gm-body"></div>
+    <div class="gm-body" id="gm-body">
+      <div class="gm-left" id="gm-left"></div>
+      <div class="gm-right" id="gm-right">
+        <div class="gm-right-placeholder">Нажмите на группу слева, чтобы увидеть расписание и детали расчёта</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1570,16 +1715,23 @@ function renderPredictionResults(top3) {
     const bell = DATA.bell_schedule[String(r.slot)];
     const dayName = DAY_NAMES[r.day];
     html += `<div class="result-card rank-${i + 1}">`;
-    html += `<div class="result-card-header">`;
+    const isImported = r._imported;
+    html += `<div class="result-card-header" style="cursor:pointer" onclick="${isImported ? '' : `openGroupsModal(${i},'more')`}">`;
     html += `<span class="rank-badge">${rankLabels[i]}</span>`;
     html += `<span class="slot-info">${dayName}, ${r.slot}-я пара<br><small>${bell.half1} / ${bell.half2}</small></span>`;
     html += `</div>`;
     html += `<div class="result-card-body">`;
-    const isImported = r._imported;
     html += `<div class="stat-row clickable" onclick="${isImported ? '' : `openGroupsModal(${i},'more')`}"><span class="stat-label">Скорее всего придут</span><span class="stat-value green">${r.moreLikely.length}</span></div>`;
+    if (!r.moreLikely.length) {
+      html += `<div style="font-size:11px;color:#999;padding:0 0 4px 4px;font-style:italic;">Нет групп в категории «Скорее придут»</div>`;
+    }
     html += `<div class="stat-row clickable" onclick="${isImported ? '' : `openGroupsModal(${i},'less')`}"><span class="stat-label">Вряд ли придут</span><span class="stat-value orange">${r.lessLikely.length}</span></div>`;
     html += `<div class="stat-row clickable" onclick="${isImported ? '' : `openGroupsModal(${i},'busy')`}"><span class="stat-label">Занятия в это время</span><span class="stat-value red">${r.haveClass.length}</span></div>`;
     html += `<div class="stat-row"><span class="stat-label">Общий балл</span><span class="stat-value">${r.totalScore.toFixed(1)}</span></div>`;
+    if (!isImported) {
+      html += renderAnchorBar(i);
+      html += renderFatigueHistogram(i);
+    }
     html += `</div></div>`;
   });
   html += '</div>';
@@ -1603,45 +1755,72 @@ function openGroupsModal(rankIdx, tab) {
   document.getElementById('gm-title').textContent =
     dayName + ', ' + r.slot + '-я пара (' + bell.half1 + ')';
 
-  const body = document.getElementById('gm-body');
+  const leftPane = document.getElementById('gm-left');
+  const rightPane = document.getElementById('gm-right');
 
-  // Build tabs + tree content
+  // Normalise legacy tab keys to new two-tab layout
+  const activeTab = tab === 'patterns' ? 'patterns' : 'groups';
+
+  // Build 2-tab layout
   const tabs = [
-    { key: 'more',  label: 'Скорее придут', ids: r.moreLikely, cls: 't-green', chipCls: 'gc-green' },
-    { key: 'less',  label: 'Вряд ли придут', ids: r.lessLikely, cls: 't-orange', chipCls: 'gc-orange' },
-    { key: 'busy',  label: 'Занятия', ids: r.haveClass, cls: 't-red', chipCls: 'gc-red' },
+    { key: 'patterns', label: 'Паттерны', cls: 't-green' },
+    { key: 'groups',   label: 'Группы',   cls: 't-green' },
   ];
 
   let tabsHtml = '<div class="gm-tabs">';
   tabs.forEach(t => {
-    const active = t.key === tab ? ' active' : '';
-    tabsHtml += `<button class="gm-tab ${t.cls}${active}" onclick="switchModalTab('${t.key}')" data-tab="${t.key}">${t.label}<span class="tab-count">${t.ids.length}</span></button>`;
+    const active = t.key === activeTab ? ' active' : '';
+    tabsHtml += `<button class="gm-tab ${t.cls}${active}" onclick="switchModalTab('${t.key}',${rankIdx})" data-tab="${t.key}">${t.label}</button>`;
   });
   tabsHtml += '</div>';
 
   let contentHtml = '';
-  tabs.forEach(t => {
-    const display = t.key === tab ? '' : 'display:none;';
-    contentHtml += `<div class="gm-tab-content" data-tab="${t.key}" style="${display}">`;
-    contentHtml += buildGroupTree(t.ids, t.chipCls, rankIdx);
-    contentHtml += '</div>';
-  });
+  // Patterns tab content
+  const patDisplay = activeTab === 'patterns' ? '' : 'display:none;';
+  contentHtml += `<div class="gm-tab-content" data-tab="patterns" style="${patDisplay}">`;
+  contentHtml += buildPatternTab(rankIdx);
+  contentHtml += '</div>';
 
-  body.innerHTML = tabsHtml + contentHtml + '<div id="gm-detail-container"></div>';
+  // Groups tab content (combined more + less + busy)
+  const grpDisplay = activeTab === 'groups' ? '' : 'display:none;';
+  contentHtml += `<div class="gm-tab-content" data-tab="groups" style="${grpDisplay}">`;
+  contentHtml += '<div class="gm-group-section">';
+  contentHtml += `<h4 class="gm-section-header gc-green-header">Скорее придут <span class="tab-count">${r.moreLikely.length}</span></h4>`;
+  contentHtml += buildGroupTree(r.moreLikely, 'gc-green', rankIdx);
+  contentHtml += '</div>';
+  contentHtml += '<div class="gm-group-section">';
+  contentHtml += `<h4 class="gm-section-header gc-orange-header">Вряд ли придут <span class="tab-count">${r.lessLikely.length}</span></h4>`;
+  contentHtml += buildGroupTree(r.lessLikely, 'gc-orange', rankIdx);
+  contentHtml += '</div>';
+  contentHtml += '<div class="gm-group-section">';
+  contentHtml += `<h4 class="gm-section-header gc-red-header">Занятия в это время <span class="tab-count">${r.haveClass.length}</span></h4>`;
+  contentHtml += buildGroupTree(r.haveClass, 'gc-red', rankIdx);
+  contentHtml += '</div>';
+  contentHtml += '</div>';
+
+  leftPane.innerHTML = tabsHtml + contentHtml;
+
+  // Reset right pane
+  rightPane.innerHTML = '<div class="gm-right-placeholder">Нажмите на группу слева, чтобы увидеть расписание и детали расчёта</div>';
+
+  // Store current rankIdx for use by other modal functions
+  document.getElementById('groups-modal-overlay').dataset.rankIdx = rankIdx;
   document.getElementById('groups-modal-overlay').classList.add('open');
 }
 
-function switchModalTab(tabKey) {
-  const body = document.getElementById('gm-body');
-  body.querySelectorAll('.gm-tab').forEach(btn => {
+function switchModalTab(tabKey, rankIdx) {
+  const leftPane = document.getElementById('gm-left');
+  leftPane.querySelectorAll('.gm-tab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === tabKey);
   });
-  body.querySelectorAll('.gm-tab-content').forEach(div => {
+  leftPane.querySelectorAll('.gm-tab-content').forEach(div => {
     div.style.display = div.dataset.tab === tabKey ? '' : 'none';
   });
-  // Clear detail card when switching tabs
-  const dc = document.getElementById('gm-detail-container');
-  if (dc) dc.innerHTML = '';
+  // If switching to patterns tab, show pattern detail in right pane
+  if (tabKey === 'patterns') {
+    const rightPane = document.getElementById('gm-right');
+    rightPane.innerHTML = buildPatternTabDetail(rankIdx);
+  }
 }
 
 function buildGroupTree(groupIds, chipCls, rankIdx) {
@@ -1713,7 +1892,7 @@ function toggleFaculty(header) {
 }
 
 function showGroupDetail(gid, rankIdx, event) {
-  const container = document.getElementById('gm-detail-container');
+  const container = document.getElementById('gm-right');
   if (!container) return;
   const g = DATA.groups[gid];
   if (!g) return;
@@ -1801,7 +1980,7 @@ function showGroupDetail(gid, rankIdx, event) {
   html += `</div>`;
 
   container.innerHTML = html;
-  container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  container.scrollTop = 0;
 }
 
 function renderMiniDaySchedule(gid, rankIdx) {
@@ -1814,6 +1993,8 @@ function renderMiniDaySchedule(gid, rankIdx) {
   const eventSlot = r.slot;
   const weekParity = heatWeekFilter; // 'odd' | 'even' | 'all'
   const dayName = DAY_NAMES[day];
+  const info = r.groupDetails ? r.groupDetails[gid] : null;
+  const detail = info ? info.detail : null;
 
   // Use shared helper to build slot map for one day
   const slotMap = buildSlotMap(g.schedule, { day, weekParity });
@@ -1821,12 +2002,25 @@ function renderMiniDaySchedule(gid, rankIdx) {
   const slots = [1, 2, 3, 4, 5, 6, 7];
   const eventLocSel = document.getElementById('pred-location');
   const eventLocName = eventLocSel ? eventLocSel.options[eventLocSel.selectedIndex].text : 'Мероприятие';
+  const eventLocGroup = eventLocSel ? parseInt(eventLocSel.value) : 1;
+
+  // Precompute location of each slot's classes
+  function slotLocGroup(s) {
+    const entries = slotMap[s] || [];
+    if (!entries.length) return null;
+    // take first non-null room
+    for (const c of entries) {
+      if (c.room_id) return classifyRoom(c.room_id);
+    }
+    return 5;
+  }
 
   let html = `<div class="mini-day-schedule">`;
   html += `<h5>${esc(dayName)} — расписание группы ${esc(gid)}</h5>`;
   html += `<table class="mini-day-table"><thead><tr><th>Пара</th><th>Время</th><th>Занятие</th></tr></thead><tbody>`;
 
-  for (const s of slots) {
+  for (let i = 0; i < slots.length; i++) {
+    const s = slots[i];
     const bell = DATA.bell_schedule[String(s)];
     const entries = slotMap[s] || [];
     const isEventSlot = s === eventSlot;
@@ -1847,12 +2041,35 @@ function renderMiniDaySchedule(gid, rankIdx) {
 
     // Show event marker in the event slot
     if (isEventSlot) {
-      html += `<div class="mini-card"><span class="mini-event-badge">★ ${esc(eventLocName)}</span></div>`;
+      // Show arrival info from detail
+      let arrivalInfo = '';
+      if (detail && detail.reason === 'scored' && detail.refClass && detail.refClass.room_id) {
+        const fromLoc = classifyRoom(detail.refClass.room_id);
+        const fromName = LOC_GROUP_NAMES[fromLoc] || '?';
+        arrivalInfo = `<span class="mini-arrival-info">← из ${esc(fromName)}</span>`;
+      }
+      html += `<div class="mini-card"><span class="mini-event-badge">★ ${esc(eventLocName)}</span>${arrivalInfo}</div>`;
     } else if (!entries.length) {
       html += `—`;
     }
 
     html += `</td></tr>`;
+
+    // Travel row: show location change between consecutive occupied slots or to/from event
+    if (i < slots.length - 1) {
+      const nextS = slots[i + 1];
+      const curLoc = isEventSlot ? eventLocGroup : slotLocGroup(s);
+      const nextIsEvent = nextS === eventSlot;
+      const nextEntries = slotMap[nextS] || [];
+      const nextLoc = nextIsEvent ? eventLocGroup : slotLocGroup(nextS);
+
+      if (curLoc && nextLoc && curLoc !== nextLoc && ((entries.length || isEventSlot) && (nextEntries.length || nextIsEvent))) {
+        const fromName = LOC_GROUP_NAMES[curLoc] || '?';
+        const toName = LOC_GROUP_NAMES[nextLoc] || '?';
+        const isWarn = (nextIsEvent || isEventSlot); // highlight travel to/from event
+        html += `<tr class="mini-travel-row${isWarn ? ' mini-travel-warn' : ''}"><td colspan="3">🚶 ${esc(fromName)} → ${esc(toName)}</td></tr>`;
+      }
+    }
   }
 
   html += `</tbody></table></div>`;
@@ -1861,6 +2078,328 @@ function renderMiniDaySchedule(gid, rankIdx) {
 
 function closeGroupsModal() {
   document.getElementById('groups-modal-overlay').classList.remove('open');
+}
+
+/* ================================================================
+   Pattern Tab — cluster groups by daily timetable shape
+   ================================================================ */
+// State for less-likely toggle in patterns tab
+let patternIncludeLess = false;
+
+function buildPatternTab(rankIdx) {
+  const r = lastPredictionResults && lastPredictionResults[rankIdx];
+  if (!r) return '<div class="gm-empty">Нет данных</div>';
+
+  const ids = patternIncludeLess ? [...r.moreLikely, ...r.lessLikely] : r.moreLikely;
+  if (!ids.length) return '<div class="gm-empty">Нет групп в категории «Скорее придут»</div>';
+
+  const day = r.day;
+  const eventSlot = r.slot;
+  const weekParity = heatWeekFilter;
+
+  // Cluster groups by their set of occupied slots on this day
+  const clusters = {}; // "2,3,5" -> [gid, ...]
+  for (const gid of ids) {
+    const g = DATA.groups[gid];
+    if (!g) continue;
+    const slotMap = buildSlotMap(g.schedule, { day, weekParity });
+    const occupied = [];
+    for (let s = 1; s <= 7; s++) {
+      if (slotMap[s] && slotMap[s].length) occupied.push(s);
+    }
+    const key = occupied.join(',');
+    (clusters[key] = clusters[key] || []).push(gid);
+  }
+
+  // Sort clusters by size descending
+  const sorted = Object.entries(clusters).sort((a, b) => b[1].length - a[1].length);
+
+  // Show top 10
+  const top = sorted.slice(0, 10);
+  let html = '<div class="pattern-section">';
+  html += '<h4>Типичные расписания на этот день</h4>';
+  // Less-likely toggle
+  html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">';
+  html += `<label style="font-size:11px;color:#888;cursor:pointer;display:flex;align-items:center;gap:4px;">`;
+  html += `<input type="checkbox" ${patternIncludeLess ? 'checked' : ''} onchange="patternIncludeLess=this.checked;rebuildPatternTab(${rankIdx})"> Включить «Вряд ли придут»`;
+  html += `</label>`;
+  html += '</div>';
+  for (const [key, gids] of top) {
+    const occupiedSlots = key ? key.split(',').map(Number) : [];
+    const safeKey = key.replace(/,/g,'_') || 'empty';
+    html += `<div class="pattern-row" style="cursor:pointer" onclick="showPatternDetail('${key}',${rankIdx})">`;
+    html += `<span class="pattern-count">${gids.length} гр.</span>`;
+    html += '<span class="pattern-grid">';
+    for (let s = 1; s <= 7; s++) {
+      let cls = 'pg-cell';
+      if (s === eventSlot) cls += ' pg-event';
+      else if (occupiedSlots.includes(s)) cls += ' pg-occupied';
+      html += `<span class="${cls}" title="Пара ${s}">${s}</span>`;
+    }
+    html += '</span>';
+    html += '</div>';
+    // Expandable group chips below the pattern row
+    html += `<div class="pattern-chips" id="pc-${safeKey}">`;
+    for (const gid of gids) {
+      html += `<span class="gm-group-chip gc-green" onclick="event.stopPropagation();showGroupDetail('${gid}',${rankIdx},event)" title="${gid}">${gid}</span>`;
+    }
+    if (gids.length > 6) {
+      html += `<button class="pattern-expand" onclick="event.stopPropagation();this.parentElement.classList.toggle('expanded');this.textContent=this.parentElement.classList.contains('expanded')?'свернуть':'ещё ${gids.length - 6}…'">ещё ${gids.length - 6}…</button>`;
+    }
+    html += '</div>';
+  }
+  if (sorted.length > 10) {
+    html += `<div style="font-size:11px;color:#aaa;margin-top:6px;">и ещё ${sorted.length - 10} паттернов…</div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+function rebuildPatternTab(rankIdx) {
+  const leftPane = document.getElementById('gm-left');
+  const content = leftPane.querySelector('.gm-tab-content[data-tab="patterns"]');
+  if (content) content.innerHTML = buildPatternTab(rankIdx);
+}
+
+function showPatternDetail(key, rankIdx) {
+  const r = lastPredictionResults && lastPredictionResults[rankIdx];
+  if (!r) return;
+
+  const ids = patternIncludeLess ? [...r.moreLikely, ...r.lessLikely] : r.moreLikely;
+  const day = r.day;
+  const eventSlot = r.slot;
+  const weekParity = heatWeekFilter;
+  const dayName = DAY_NAMES[day];
+
+  // Re-cluster to find groups for this key
+  const gids = [];
+  for (const gid of ids) {
+    const g = DATA.groups[gid];
+    if (!g) continue;
+    const slotMap = buildSlotMap(g.schedule, { day, weekParity });
+    const occupied = [];
+    for (let s = 1; s <= 7; s++) {
+      if (slotMap[s] && slotMap[s].length) occupied.push(s);
+    }
+    if (occupied.join(',') === key) gids.push(gid);
+  }
+
+  const occupiedSlots = key ? key.split(',').map(Number) : [];
+  const rightPane = document.getElementById('gm-right');
+
+  // Event location
+  const eventLocSel = document.getElementById('pred-location');
+  const eventLocName = eventLocSel ? eventLocSel.options[eventLocSel.selectedIndex].text : 'Мероприятие';
+  const eventLocGroup = eventLocSel ? parseInt(eventLocSel.value) : 1;
+
+  // Aggregate origin data: where do these groups come from right before the event?
+  const originCounts = {1:0, 2:0, 3:0, 4:0, 5:0};
+  let originTotal = 0;
+  // Find the last occupied slot before the event
+  let lastOccupiedBefore = null;
+  for (let s = eventSlot - 1; s >= 1; s--) {
+    if (occupiedSlots.includes(s)) { lastOccupiedBefore = s; break; }
+  }
+  if (lastOccupiedBefore) {
+    for (const gid of gids) {
+      const g = DATA.groups[gid];
+      if (!g) continue;
+      const slotMap = buildSlotMap(g.schedule, { day, weekParity });
+      const entries = slotMap[lastOccupiedBefore];
+      if (!entries || !entries.length) continue;
+      for (const e of entries) {
+        const loc = classifyRoom(e.room_id);
+        originCounts[loc]++;
+        originTotal++;
+      }
+    }
+  }
+
+  let html = `<div class="mini-day-schedule">`;
+  html += `<h5>${esc(dayName)} — паттерн: ${gids.length} групп</h5>`;
+  html += `<table class="mini-day-table"><thead><tr><th>Пара</th><th>Время</th><th>Занятие</th></tr></thead><tbody>`;
+
+  for (let s = 1; s <= 7; s++) {
+    const bell = DATA.bell_schedule[String(s)];
+    const isEvent = s === eventSlot;
+    const isOccupied = occupiedSlots.includes(s);
+
+    let rowCls = '';
+    if (isEvent) rowCls = 'mini-event-slot';
+    else if (!isOccupied) rowCls = 'mini-empty';
+
+    // Origin travel row right before the event slot
+    if (isEvent && originTotal > 0) {
+      // Build origin bar like the travel row in group miniday
+      const colors = {1:'#3498db',2:'#e67e22',3:'#9b59b6',4:'#27ae60',5:'#95a5a6'};
+      let fromParts = [];
+      for (let loc = 1; loc <= 5; loc++) {
+        if (originCounts[loc]) fromParts.push(LOC_GROUP_NAMES[loc]);
+      }
+      let barHtml = '<span style="display:inline-flex;height:10px;border-radius:2px;overflow:hidden;vertical-align:middle;margin-left:6px;">';
+      for (let loc = 1; loc <= 5; loc++) {
+        if (!originCounts[loc]) continue;
+        const w = Math.max(Math.round(originCounts[loc] / originTotal * 80), 6);
+        barHtml += `<span style="width:${w}px;background:${colors[loc]};" title="${LOC_GROUP_NAMES[loc]}: ${originCounts[loc]}"></span>`;
+      }
+      barHtml += '</span>';
+      html += `<tr class="mini-travel-row mini-travel-warn"><td colspan="3">🚶 ${fromParts.join(', ')} → ${esc(eventLocName)} ${barHtml}</td></tr>`;
+    }
+
+    html += `<tr class="${rowCls}">`;
+    html += `<td class="mini-slot-num">${s}</td>`;
+    html += `<td style="white-space:nowrap">${bell.half1}<br>${bell.half2}</td>`;
+    html += `<td>`;
+
+    if (isEvent) {
+      html += `<div class="mini-card"><span class="mini-event-badge">★ ${esc(eventLocName)}</span></div>`;
+    } else if (isOccupied) {
+      html += `<div class="mini-card"><span style="color:#1e3a6e;font-weight:600;">Занятие</span> <span style="color:#888;font-size:10px;">(${gids.length} гр.)</span></div>`;
+    } else {
+      html += '—';
+    }
+
+    html += `</td></tr>`;
+  }
+
+  html += `</tbody></table>`;
+
+  // Anchor bar for this pattern
+  html += '<div style="margin-top:12px;">';
+  html += renderPatternAnchorBar(gids, r);
+  html += '</div>';
+
+  html += '</div>';
+  rightPane.innerHTML = html;
+  rightPane.scrollTop = 0;
+}
+
+function renderPatternAnchorBar(gids, r) {
+  if (!r || !r.groupDetails) return '';
+  const locCounts = {1:0, 2:0, 3:0, 4:0, 5:0};
+  let total = 0;
+  for (const gid of gids) {
+    const info = r.groupDetails[gid];
+    if (!info || !info.detail || info.detail.reason !== 'scored') continue;
+    const d = info.detail;
+    let loc = 5;
+    if (d.refClass && d.refClass.room_id) {
+      loc = classifyRoom(d.refClass.room_id);
+    } else if (d.anchorCount === 0 && d.onlineCount > 0) {
+      loc = 3;
+    }
+    locCounts[loc]++;
+    total++;
+  }
+  if (!total) return '';
+  let html = '<div class="anchor-bar-wrap">';
+  html += '<h5>📍 Откуда придут эти студенты</h5>';
+  html += '<div class="anchor-bar">';
+  for (let loc = 1; loc <= 5; loc++) {
+    if (!locCounts[loc]) continue;
+    const pct = (locCounts[loc] / total * 100).toFixed(1);
+    html += `<div class="ab-seg ab-${loc}" style="flex:${locCounts[loc]}" title="${LOC_GROUP_NAMES[loc]}: ${locCounts[loc]} (${pct}%)">${locCounts[loc]}</div>`;
+  }
+  html += '</div>';
+  html += '<div class="anchor-legend">';
+  const colors = {1:'#3498db',2:'#e67e22',3:'#9b59b6',4:'#27ae60',5:'#95a5a6'};
+  for (let loc = 1; loc <= 5; loc++) {
+    if (!locCounts[loc]) continue;
+    html += `<span><span class="al-dot" style="background:${colors[loc]}"></span>${LOC_GROUP_NAMES[loc]} (${locCounts[loc]})</span>`;
+  }
+  html += '</div></div>';
+  return html;
+}
+
+function buildPatternTabDetail(rankIdx) {
+  // Summary view for right pane when patterns tab is active
+  const r = lastPredictionResults && lastPredictionResults[rankIdx];
+  if (!r) return '';
+  let html = '<div style="padding:8px 0">';
+  html += renderAnchorBar(rankIdx);
+  html += renderFatigueHistogram(rankIdx);
+  html += '</div>';
+  return html;
+}
+
+/* ================================================================
+   Tool A — Anchor-point bar (from which building students arrive)
+   ================================================================ */
+function renderAnchorBar(rankIdx) {
+  const r = lastPredictionResults && lastPredictionResults[rankIdx];
+  if (!r || !r.groupDetails) return '';
+
+  const locCounts = {1:0, 2:0, 3:0, 4:0, 5:0};
+  let total = 0;
+  for (const gid of r.moreLikely) {
+    const info = r.groupDetails[gid];
+    if (!info || !info.detail || info.detail.reason !== 'scored') continue;
+    const d = info.detail;
+    let loc = 5;
+    if (d.refClass && d.refClass.room_id) {
+      loc = classifyRoom(d.refClass.room_id);
+    } else if (d.anchorCount === 0 && d.onlineCount > 0) {
+      loc = 3;
+    }
+    locCounts[loc]++;
+    total++;
+  }
+  if (!total) return '';
+
+  let html = '<div class="anchor-bar-wrap">';
+  html += '<h5>📍 Откуда придут студенты</h5>';
+  html += '<div class="anchor-bar">';
+  for (let loc = 1; loc <= 5; loc++) {
+    if (!locCounts[loc]) continue;
+    const pct = (locCounts[loc] / total * 100).toFixed(1);
+    html += `<div class="ab-seg ab-${loc}" style="flex:${locCounts[loc]}" title="${LOC_GROUP_NAMES[loc]}: ${locCounts[loc]} (${pct}%)">${locCounts[loc]}</div>`;
+  }
+  html += '</div>';
+  html += '<div class="anchor-legend">';
+  for (let loc = 1; loc <= 5; loc++) {
+    if (!locCounts[loc]) continue;
+    const colors = {1:'#3498db',2:'#e67e22',3:'#9b59b6',4:'#27ae60',5:'#95a5a6'};
+    html += `<span><span class="al-dot" style="background:${colors[loc]}"></span>${LOC_GROUP_NAMES[loc]} (${locCounts[loc]})</span>`;
+  }
+  html += '</div></div>';
+  return html;
+}
+
+/* ================================================================
+   Tool B — Audience fatigue histogram
+   ================================================================ */
+function renderFatigueHistogram(rankIdx) {
+  const r = lastPredictionResults && lastPredictionResults[rankIdx];
+  if (!r || !r.groupDetails) return '';
+
+  const buckets = [0, 0, 0, 0, 0]; // 0, 1, 2, 3, 4+ prior classes
+  let total = 0;
+  for (const gid of r.moreLikely) {
+    const info = r.groupDetails[gid];
+    if (!info || !info.detail || info.detail.reason !== 'scored') continue;
+    const load = Math.round(info.detail.effectiveLoad);
+    const idx = Math.min(load, 4);
+    buckets[idx]++;
+    total++;
+  }
+  if (!total) return '';
+
+  const maxBucket = Math.max(...buckets, 1);
+
+  let html = '<div class="fatigue-wrap">';
+  html += '<h5>😴 Усталость аудитории — пар до мероприятия</h5>';
+  html += '<div class="fatigue-bars">';
+  const labels = ['0', '1', '2', '3', '4+'];
+  for (let i = 0; i < 5; i++) {
+    const h = Math.max(buckets[i] / maxBucket * 44, buckets[i] ? 8 : 3);
+    const pct = total ? Math.round(buckets[i] / total * 100) : 0;
+    html += `<div class="fatigue-bar" style="height:${h}px" data-count="${buckets[i] || ''}" title="${labels[i]} пар: ${buckets[i]} групп (${pct}%)"></div>`;
+  }
+  html += '</div>';
+  html += '<div class="fatigue-labels">';
+  for (const l of labels) html += `<span>${l}</span>`;
+  html += '</div></div>';
+  return html;
 }
 
 function highlightPredictedSlots(top3) {
@@ -1876,6 +2415,8 @@ function highlightPredictedSlots(top3) {
     const cell = row.children[r.day]; // day 1 → index 1 (index 0 is time cell)
     if (!cell) return;
     cell.classList.add('slot-rank-' + rank);
+    cell.style.cursor = 'pointer';
+    cell.onclick = function() { openGroupsModal(idx, 'more'); };
     // Add rank overlay badge
     const rankEmojis = ['\ud83e\udd47', '\ud83e\udd48', '\ud83e\udd49'];
     const overlay = document.createElement('span');

@@ -9,6 +9,7 @@ import sys
 import threading
 import time
 import webbrowser
+import os
 
 DEFAULT_PORT = 8764
 
@@ -251,6 +252,11 @@ if __name__ == "__main__":
     parser.add_argument("--no-open", action="store_true",
                         help="Do not open browser on start")
     args = parser.parse_args()
+
+    
+    if not os.path.exists("nsu_data.json"):
+        _start_update()  # kick off initial data load if not present
+
 
     with http.server.HTTPServer((args.host, args.port), Handler) as srv:
         display_host = "localhost" if args.host in ("127.0.0.1", "0.0.0.0", "") else args.host

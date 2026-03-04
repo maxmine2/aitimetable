@@ -4,3 +4,4 @@ _diag.py
 *.log
 run_log.txt
 *.pem
+nsu_data.json

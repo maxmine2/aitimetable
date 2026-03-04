@@ -1,7 +1,6 @@
 """Local HTTP server for the timetable viewer with update endpoint."""
 
 import argparse
-import collections
 import http.server
 import json
 import re
@@ -54,39 +53,7 @@ _BLOCKED_UA_RE = re.compile(
     r"scrapy|zgrab|censys|shodan)"
 )
 
-# Per-IP rate limiter: max requests in a sliding window
-_RATE_WINDOW = 10       # seconds
-_RATE_MAX_HITS = 60     # max requests per window per IP
-_rate_hits: dict[str, collections.deque] = {}
-_rate_lock = threading.Lock()
-_ban_until: dict[str, float] = {}    # IP → epoch until banned
 
-
-def _check_rate(ip: str) -> bool:
-    """Return True if the request is allowed, False if rate-limited."""
-    now = time.time()
-    with _rate_lock:
-        # Check existing ban
-        if ip in _ban_until:
-            if now < _ban_until[ip]:
-                return False
-            del _ban_until[ip]
-
-        hits = _rate_hits.setdefault(ip, collections.deque())
-        # Purge old entries
-        while hits and hits[0] < now - _RATE_WINDOW:
-            hits.popleft()
-        if len(hits) >= _RATE_MAX_HITS:
-            _ban_until[ip] = now + 60  # ban for 60 s on burst
-            return False
-        hits.append(now)
-        return True
-
-
-def _block_ip(ip: str, seconds: int = 300) -> None:
-    """Immediately ban an IP for *seconds*."""
-    with _rate_lock:
-        _ban_until[ip] = time.time() + seconds
 
 # ---------------------------------------------------------------------------
 # Update state — guarded by a lock
@@ -233,23 +200,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     # ---- security gate (runs before every request) ----
     def _guard(self) -> bool:
         """Return True if the request is allowed. Sends error & returns False otherwise."""
-        ip = self.client_address[0]
-
-        # 1. Rate limit
-        if not _check_rate(ip):
-            self.send_error(429, "Too Many Requests")
-            return False
-
-        # 2. Block bad user-agents
+        # 1. Block bad user-agents
         ua = self.headers.get("User-Agent", "")
         if _BLOCKED_UA_RE.search(ua):
-            _block_ip(ip, 300)
             self.send_error(403, "Forbidden")
             return False
 
-        # 3. Block suspicious URL patterns
+        # 2. Block suspicious URL patterns
         if _BLOCKED_PATH_RE.search(self.path):
-            _block_ip(ip, 300)
             self.send_error(403, "Forbidden")
             return False
 
@@ -301,10 +259,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._json_response(_status())
             return
 
+        # Redirect / -> /timetable.html
+        if self.path == "/":
+            self.send_response(302)
+            self.send_header("Location", "/timetable.html")
+            self.end_headers()
+            return
+
         # Whitelist static files
         clean = self.path.split("?")[0].split("#")[0]
-        if clean == "/":
-            clean = "/timetable.html"
         if clean not in _ALLOWED_FILES:
             self.send_error(403, "Forbidden")
             return

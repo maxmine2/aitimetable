@@ -1,0 +1,2530 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Расписание НГУ</title>
+<style>
+  /* ---------- reset & base ---------- */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #f5f5f5;
+    color: #333;
+    min-height: 100vh;
+  }
+
+  /* ---------- animations ---------- */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeInScale {
+    from { opacity: 0; transform: scale(.97); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes chipPop {
+    0%   { opacity: 0; transform: scale(.8); }
+    60%  { transform: scale(1.04); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+
+  /* ---------- header ---------- */
+  .header {
+    background: linear-gradient(135deg, #1e3a6e 0%, #2d5ca6 60%, #3a6fbf 100%);
+    color: #fff;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+    min-height: 56px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.18);
+  }
+  .header h1 {
+    font-size: 18px;
+    font-weight: 700;
+    white-space: nowrap;
+    letter-spacing: .3px;
+  }
+  .header .group-select-wrap {
+    position: relative;
+    flex: 1;
+    max-width: 480px;
+  }
+  .header input#group-search {
+    width: 100%;
+    padding: 7px 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    outline: none;
+  }
+  .dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0; right: 0;
+    max-height: 360px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  }
+  .dropdown.show { display: block; animation: slideDown .15s ease-out; }
+  .dropdown .opt {
+    padding: 7px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #000;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background .12s, padding-left .12s;
+  }
+  .dropdown .opt:hover,
+  .dropdown .opt.active { background: #e8f0fe; padding-left: 16px; }
+
+  /* ---------- group meta ---------- */
+  .meta {
+    max-width: 1200px;
+    margin: 16px auto 0;
+    padding: 0 16px;
+    font-size: 14px;
+    color: #555;
+    animation: fadeIn .25s ease-out;
+  }
+  .meta span + span::before { content: "  •  "; color: #aaa; }
+
+  /* ---------- schedule table ---------- */
+  .table-wrap {
+    max-width: 1200px;
+    margin: 12px auto 32px;
+    padding: 0 16px;
+    overflow-x: auto;
+  }
+  table.schedule {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    font-size: 13px;
+    table-layout: fixed;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    border-radius: 6px;
+    overflow: hidden;
+    animation: fadeInScale .3s ease-out;
+  }
+  table.schedule th,
+  table.schedule td {
+    border: 1px solid #dee2e6;
+    padding: 0;
+    vertical-align: top;
+    text-align: center;
+  }
+
+  /* column widths */
+  table.schedule col.col-time { width: 100px; }
+  table.schedule col.col-day  { }
+
+  /* header row */
+  table.schedule thead th {
+    background: #2d5ca6;
+    color: #fff;
+    font-weight: 600;
+    padding: 10px 4px;
+    font-size: 14px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+
+  /* time cell */
+  td.time-cell {
+    background: #f8f9fa;
+    font-weight: 600;
+    font-size: 12px;
+    line-height: 1.4;
+    padding: 8px 4px;
+    color: #555;
+    vertical-align: middle;
+  }
+  td.time-cell .slot-num { color: #2d5ca6; font-size: 14px; }
+
+  /* day cell */
+  td.day-cell {
+    padding: 0;
+    height: 100%;
+  }
+  td.day-cell.empty { background: #fafafa; }
+
+  /* class card */
+  .class-card {
+    padding: 6px 6px 5px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+    position: relative;
+    transition: background .15s;
+  }
+  .class-card:last-child { border-bottom: none; }
+  .class-card:hover { filter: brightness(.97); }
+
+  .class-card .week-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 3px;
+    padding: 1px 5px;
+    margin-bottom: 2px;
+    color: #fff;
+  }
+  .week-tag.odd  { background: #e67e22; }
+  .week-tag.even { background: #27ae60; }
+
+  .class-card.week-odd  { background: #fef5ea; }
+  .class-card.week-even { background: #eafaf1; }
+
+  .class-card .subject {
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 2px;
+  }
+  .class-card .type-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: 4px;
+    vertical-align: middle;
+    color: #fff;
+  }
+  .type-lecture  { background: #3498db; }
+  .type-seminar  { background: #e67e22; }
+  .type-labs     { background: #e74c3c; }
+  .type-elective { background: #9b59b6; }
+  .type-other    { background: #95a5a6; }
+
+  .class-card .teacher {
+    font-size: 12px;
+    color: #2d5ca6;
+    margin-top: 2px;
+  }
+  .class-card .room {
+    font-size: 11px;
+    color: #888;
+    margin-top: 1px;
+  }
+
+  /* card left-border accent by type */
+  .class-card.t-lecture  { border-left: 3px solid #3498db; }
+  .class-card.t-seminar  { border-left: 3px solid #e67e22; }
+  .class-card.t-labs     { border-left: 3px solid #e74c3c; }
+  .class-card.t-elective { border-left: 3px solid #9b59b6; }
+  .class-card.t-other    { border-left: 3px solid #95a5a6; }
+
+  /* ---------- empty state ---------- */
+  .placeholder {
+    text-align: center;
+    color: #999;
+    margin-top: 120px;
+    font-size: 18px;
+  }
+  .placeholder small { display: block; margin-top: 6px; font-size: 14px; }
+
+  /* ---------- legend ---------- */
+  .legend {
+    max-width: 1200px;
+    margin: 0 auto 24px;
+    padding: 0 16px;
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: #666;
+  }
+  .legend .swatch {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border-radius: 2px;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+
+  /* ---------- header mode button ---------- */
+  .mode-btn {
+    background: rgba(255,255,255,.15);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,.4);
+    border-radius: 4px;
+    padding: 7px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s, transform .1s;
+  }
+  .mode-btn:hover { background: rgba(255,255,255,.25); }
+  .mode-btn:active { transform: scale(.95); }
+  .mode-btn.active { background: rgba(255,255,255,.35); font-weight: 600; }
+
+  /* ---------- heatmap filter panel ---------- */
+  .heatmap-panel {
+    display: none;
+    max-width: 1200px;
+    margin: 12px auto 0;
+    padding: 0 16px;
+    animation: fadeIn .25s ease-out;
+  }
+  .heatmap-panel.show { display: block; }
+  .app-body .heatmap-panel { margin-left: auto; margin-right: auto; }
+
+  .filter-bar {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    flex-wrap: wrap;
+    background: #fff;
+    border-radius: 6px;
+    padding: 12px 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+  }
+  .filter-bar select {
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #333;
+    background: #fff;
+    outline: none;
+    max-width: 280px;
+  }
+  .filter-bar select:focus { border-color: #2d5ca6; }
+  .filter-bar .add-btn {
+    padding: 6px 16px;
+    background: #2d5ca6;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s, transform .1s;
+  }
+  .filter-bar .add-btn:hover { background: #245099; }
+  .filter-bar .add-btn:active { transform: scale(.96); }
+
+  /* chips area */
+  .chips-area {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+    min-height: 28px;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #e8f0fe;
+    color: #1a3e78;
+    border: 1px solid #b8d0f5;
+    border-radius: 16px;
+    padding: 4px 10px 4px 12px;
+    font-size: 12px;
+    line-height: 1.3;
+    animation: chipPop .25s ease-out;
+    transition: box-shadow .15s;
+  }
+  .chip:hover { box-shadow: 0 1px 5px rgba(45,92,166,.25); }
+  .chip .chip-x {
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 700;
+    color: #6a8bc5;
+    line-height: 1;
+    border: none; background: none; padding: 0;
+  }
+  .chip .chip-x:hover { color: #c0392b; }
+  .chips-area .chip-hint {
+    color: #aaa;
+    font-size: 12px;
+    line-height: 28px;
+  }
+
+  /* week toggle */
+  .week-toggle {
+    display: inline-flex;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    overflow: hidden;
+    font-size: 13px;
+  }
+  .week-toggle button {
+    padding: 5px 12px;
+    border: none;
+    background: #fff;
+    color: #333;
+    cursor: pointer;
+    border-right: 1px solid #ccc;
+  }
+  .week-toggle button:last-child { border-right: none; }
+  .week-toggle button.active { background: #2d5ca6; color: #fff; font-weight: 600; }
+
+  /* ---------- heatmap cells ---------- */
+  td.heatmap-cell {
+    vertical-align: middle;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 600;
+    padding: 0;
+    transition: background .2s;
+    height: 1px; /* trick to let children use 100% height */
+  }
+  td.heatmap-cell.heat-0 { background: #f8f9fa; color: #ccc; padding: 10px 4px; }
+  /* single-value cell (odd or even mode) */
+  td.heatmap-cell .heat-single { display: block; padding: 10px 4px; height: 100%; display: flex; align-items: center; justify-content: center; }
+  /* split cell */
+  td.heatmap-cell .heat-split {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  td.heatmap-cell .heat-half {
+    flex: 1;
+    padding: 5px 4px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.4;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  td.heatmap-cell .heat-half + .heat-half {
+    border-top: 1px solid rgba(255,255,255,.35);
+  }
+  td.heatmap-cell .heat-half .wk-label {
+    font-size: 9px;
+    font-weight: 700;
+    opacity: .7;
+    display: block;
+  }
+
+  /* heatmap legend */
+  .heatmap-legend {
+    max-width: 1200px;
+    margin: 0 auto 24px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #666;
+  }
+  .heatmap-legend .grad-bar {
+    display: inline-block;
+    width: 180px; height: 14px;
+    border-radius: 3px;
+    margin: 0 6px;
+  }
+
+  /* ---------- prediction panel ---------- */
+  .prediction-panel {
+    display: none;
+    margin-top: 12px;
+    background: #fff;
+    border-radius: 6px;
+    padding: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    animation: fadeIn .25s ease-out;
+  }
+  .prediction-panel.show { display: block; }
+  .prediction-panel h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e3a6e;
+    margin-bottom: 10px;
+  }
+  .pred-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .pred-controls select {
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #333;
+    background: #fff;
+    outline: none;
+  }
+  .pred-controls select:focus { border-color: #2d5ca6; }
+  .pred-controls label {
+    font-size: 13px;
+    color: #555;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+  }
+  .pred-controls label input[type="checkbox"] {
+    accent-color: #2d5ca6;
+  }
+  .pred-days {
+    display: inline-flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .pred-run-btn {
+    padding: 6px 18px;
+    background: #2d5ca6;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, transform .1s;
+  }
+  .pred-run-btn:hover { background: #245099; }
+  .pred-run-btn:active { transform: scale(.96); }
+  .pred-section-label {
+    font-size: 12px; font-weight: 600; color: #1e3a6e;
+    white-space: nowrap;
+  }
+  .pred-sep {
+    font-size: 13px; color: #999;
+  }
+
+  /* ---------- share bar (inside prediction panel) ---------- */
+  .share-bar-inner {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin-top: 10px; padding-top: 10px;
+    border-top: 1px solid #eee;
+  }
+  .share-bar-inner .share-label { font-size: 12px; font-weight: 600; color: #1e3a6e; white-space: nowrap; }
+
+  /* ---------- app body layout ---------- */
+  .app-body {
+    display: flex;
+    max-width: 1500px;
+    margin: 0 auto;
+    align-items: flex-start;
+  }
+  .app-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* ---------- preset sidebar ---------- */
+  .preset-sidebar {
+    display: none;
+    width: 280px;
+    flex-shrink: 0;
+    margin: 12px 16px 32px 0;
+    animation: fadeIn .25s ease-out;
+  }
+  .preset-sidebar.show { display: block; }
+  .preset-sidebar-inner {
+    position: sticky;
+    top: 12px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 6px rgba(0,0,0,.1);
+    padding: 14px;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+  }
+  .preset-sidebar-inner h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1e3a6e;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .preset-save-btn-lg {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 8px 14px;
+    background: #2d5ca6;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, transform .1s;
+    margin-bottom: 12px;
+  }
+  .preset-save-btn-lg:hover { background: #245099; }
+  .preset-save-btn-lg:active { transform: scale(.97); }
+
+  .preset-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .preset-card {
+    border: 1px solid #e0e4ea;
+    border-radius: 6px;
+    padding: 10px 12px;
+    background: #fafbfd;
+    cursor: pointer;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+    position: relative;
+  }
+  .preset-card:hover {
+    border-color: #2d5ca6;
+    box-shadow: 0 2px 8px rgba(45,92,166,.12);
+    background: #f0f4ff;
+  }
+  .preset-card-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e3a6e;
+    margin-bottom: 4px;
+    word-break: break-word;
+  }
+  .preset-card-meta {
+    font-size: 11px;
+    color: #888;
+    line-height: 1.4;
+  }
+  .preset-card-meta span {
+    display: inline-block;
+    margin-right: 6px;
+  }
+  .preset-card-actions {
+    display: flex;
+    gap: 4px;
+    margin-top: 8px;
+  }
+  .preset-card-actions button {
+    padding: 4px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    background: #fff;
+    color: #333;
+    transition: background .12s, border-color .12s;
+  }
+  .preset-card-actions button:hover { background: #f0f4ff; border-color: #2d5ca6; }
+  .preset-card-actions .pc-load-btn { background: #2d5ca6; color: #fff; border-color: #2d5ca6; }
+  .preset-card-actions .pc-load-btn:hover { background: #245099; }
+  .preset-card-actions .pc-del-btn { color: #e74c3c; border-color: #e0b4b4; }
+  .preset-card-actions .pc-del-btn:hover { background: #fef0ef; border-color: #e74c3c; }
+  .preset-empty {
+    font-size: 12px;
+    color: #aaa;
+    text-align: center;
+    padding: 16px 8px;
+    line-height: 1.5;
+  }
+
+  @media (max-width: 900px) {
+    .app-body { flex-direction: column; }
+    .preset-sidebar {
+      width: 100%;
+      margin: 0 0 16px;
+      padding: 0 16px;
+    }
+    .preset-sidebar-inner {
+      position: static;
+      max-height: none;
+    }
+  }
+
+  /* ---------- share bar ---------- */
+  .share-bar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    max-width: 1200px; margin: 0 auto;
+    padding: 8px 0 4px;
+  }
+  .share-btn {
+    padding: 6px 14px; background: #fff; border: 1px solid #ccc; border-radius: 4px;
+    font-size: 12px; font-weight: 600; color: #2d5ca6; cursor: pointer;
+    transition: background .12s, border-color .12s;
+  }
+  .share-btn:hover { background: #f0f4ff; border-color: #2d5ca6; }
+  .share-code {
+    font-family: 'Consolas', 'Monaco', monospace; font-size: 11px;
+    background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px;
+    padding: 5px 10px; color: #333; max-width: 400px;
+    word-break: break-all; user-select: all;
+  }
+  .share-copied {
+    font-size: 11px; color: #27ae60; font-weight: 600;
+    animation: fadeIn .2s ease-out;
+  }
+  .share-import {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .share-import input {
+    padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px;
+    font-size: 12px; font-family: 'Consolas', monospace; width: 260px;
+  }
+
+  /* ---------- prediction results ---------- */
+  .prediction-results {
+    max-width: 1200px;
+    margin: 14px auto 0;
+    padding-bottom: 60px;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .result-card {
+    flex: 1;
+    min-width: 260px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.1);
+    overflow: hidden;
+    animation: fadeInScale .3s ease-out;
+  }
+  .result-card-header {
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    color: #fff;
+  }
+  .result-card.rank-1 .result-card-header { background: linear-gradient(135deg, #f1c40f, #f39c12); }
+  .result-card.rank-2 .result-card-header { background: linear-gradient(135deg, #bdc3c7, #95a5a6); }
+  .result-card.rank-3 .result-card-header { background: linear-gradient(135deg, #cd7f32, #a0522d); }
+  .result-card-header .rank-badge {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .result-card-header .slot-info { font-size: 14px; }
+  .result-card-header .slot-info small { font-weight: 400; opacity: .85; font-size: 12px; }
+  .result-card-body {
+    padding: 10px 14px;
+  }
+  .result-card-body .stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    padding: 4px 0;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .result-card-body .stat-row:last-child { border-bottom: none; }
+  .stat-label { color: #666; }
+  .stat-value { font-weight: 600; }
+  .stat-value.green { color: #27ae60; }
+  .stat-value.orange { color: #e67e22; }
+  .stat-value.red { color: #e74c3c; }
+  .stat-row.clickable { cursor: pointer; border-radius: 4px; transition: background .12s; }
+  .stat-row.clickable:hover { background: #f0f4ff; }
+  .stat-row.clickable .stat-label { text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
+
+  /* ---------- groups modal ---------- */
+  .groups-modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.45); z-index: 1000;
+    align-items: center; justify-content: center;
+    animation: fadeIn .15s ease-out;
+  }
+  .groups-modal-overlay.open { display: flex; }
+  .groups-modal {
+    background: #fff; border-radius: 10px;
+    width: 90vw; max-width: 720px;
+    max-height: 80vh; display: flex; flex-direction: column;
+    box-shadow: 0 12px 48px rgba(0,0,0,.25);
+    animation: fadeInScale .2s ease-out;
+  }
+  .gm-header {
+    padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid #eee; flex-shrink: 0;
+  }
+  .gm-header h3 { font-size: 16px; color: #1e3a6e; margin: 0; }
+  .gm-close {
+    background: none; border: none; font-size: 22px;
+    color: #999; cursor: pointer; padding: 4px 8px; line-height: 1;
+  }
+  .gm-close:hover { color: #e74c3c; }
+  .gm-body {
+    padding: 12px 20px 20px; overflow-y: auto; flex: 1;
+  }
+  .gm-tabs {
+    display: flex; gap: 0; border-bottom: 2px solid #eee; margin-bottom: 14px;
+  }
+  .gm-tab {
+    padding: 8px 16px; border: none; background: none;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    color: #999; border-bottom: 2px solid transparent;
+    margin-bottom: -2px; transition: color .15s;
+  }
+  .gm-tab:hover { color: #555; }
+  .gm-tab.active { color: #2d5ca6; border-bottom-color: #2d5ca6; }
+  .gm-tab .tab-count {
+    display: inline-block; margin-left: 4px; font-size: 11px;
+    background: #e8f0fe; color: #2d5ca6; border-radius: 8px; padding: 1px 6px;
+  }
+  .gm-tab.t-green .tab-count  { background: #e9f7ef; color: #27ae60; }
+  .gm-tab.t-orange .tab-count { background: #fef5ea; color: #e67e22; }
+  .gm-tab.t-red .tab-count    { background: #fdedec; color: #e74c3c; }
+
+  /* tree */
+  .gm-tree { font-size: 13px; }
+  .gm-faculty { margin-bottom: 10px; }
+  .gm-fac-header {
+    display: flex; align-items: center; gap: 6px;
+    font-weight: 600; color: #1e3a6e; padding: 5px 0;
+    cursor: pointer; user-select: none;
+  }
+  .gm-fac-header:hover { color: #3a7bd5; }
+  .gm-fac-header .arrow { font-size: 10px; transition: transform .15s; display: inline-block; }
+  .gm-fac-header.collapsed .arrow { transform: rotate(-90deg); }
+  .gm-fac-count { font-size: 11px; color: #999; font-weight: 400; }
+  .gm-fac-body { padding-left: 18px; }
+  .gm-fac-body.collapsed { display: none; }
+  .gm-year-row { margin: 4px 0; }
+  .gm-year-label { font-weight: 600; font-size: 12px; color: #555; margin-right: 6px; }
+  .gm-dy-sep {
+    display: inline-block; font-size: 10px; font-weight: 600;
+    color: #1e3a6e; background: #e8f0fe; border-radius: 6px;
+    padding: 1px 5px; margin: 2px 4px 2px 2px; vertical-align: middle;
+  }
+  .gm-group-chip {
+    display: inline-block; font-size: 12px;
+    padding: 2px 8px; margin: 2px 3px 2px 0;
+    border-radius: 10px; cursor: pointer;
+    transition: background .12s, box-shadow .12s;
+  }
+  .gm-group-chip:hover { box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+  .gm-group-chip.gc-green  { background: #e9f7ef; color: #1a7a42; }
+  .gm-group-chip.gc-orange { background: #fef5ea; color: #b35c10; }
+  .gm-group-chip.gc-red    { background: #fdedec; color: #c0392b; }
+
+  /* group detail popover inside modal */
+  .gm-detail-card {
+    margin-top: 10px; background: #f8f9fa; border: 1px solid #e0e0e0;
+    border-radius: 8px; padding: 10px 14px; font-size: 12px;
+    animation: slideDown .15s ease-out;
+  }
+  .gm-detail-card h4 { font-size: 13px; color: #1e3a6e; margin: 0 0 6px; }
+  .gm-detail-card .gm-detail-meta { color: #888; font-size: 11px; margin-bottom: 6px; }
+  .gm-detail-card table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .gm-detail-card th { background: #2d5ca6; color: #fff; padding: 4px 6px; font-weight: 600; }
+  .gm-detail-card td { padding: 3px 6px; border-bottom: 1px solid #eee; }
+  .gm-detail-card tr:last-child td { border-bottom: none; }
+  .gm-detail-close {
+    float: right; background: none; border: none; cursor: pointer;
+    font-size: 16px; color: #999; line-height: 1;
+  }
+  .gm-detail-close:hover { color: #e74c3c; }
+
+  /* score breakdown inside detail card */
+  .score-breakdown { margin-top: 6px; }
+  .score-breakdown .sb-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 3px 0; border-bottom: 1px solid #eee; font-size: 12px;
+  }
+  .score-breakdown .sb-row:last-child { border-bottom: none; }
+  .score-breakdown .sb-label { color: #555; }
+  .score-breakdown .sb-value { font-weight: 600; color: #2d5ca6; min-width: 50px; text-align: right; }
+  .score-breakdown .sb-formula { color: #999; font-size: 11px; font-family: monospace; }
+  .score-breakdown .sb-section {
+    font-weight: 700; color: #1e3a6e; font-size: 12px;
+    padding: 6px 0 2px; border-bottom: 2px solid #2d5ca6;
+    margin-top: 4px;
+  }
+  .score-breakdown .sb-total {
+    font-weight: 700; font-size: 13px; color: #1e3a6e;
+    padding: 6px 0 2px; border-top: 2px solid #2d5ca6; margin-top: 4px;
+  }
+  .sb-tag {
+    display: inline-block; padding: 1px 6px; border-radius: 8px;
+    font-size: 10px; font-weight: 600; color: #fff;
+  }
+  .sb-tag.sb-green  { background: #27ae60; }
+  .sb-tag.sb-orange { background: #e67e22; }
+  .sb-tag.sb-red    { background: #e74c3c; }
+  .gm-empty { color: #aaa; text-align: center; padding: 20px; font-size: 13px; }
+
+  /* ---------- heatmap slot highlights ---------- */
+  td.heatmap-cell.slot-rank-1 { outline: 3px solid #f1c40f; outline-offset: -2px; position: relative; }
+  td.heatmap-cell.slot-rank-2 { outline: 3px solid #bdc3c7; outline-offset: -2px; position: relative; }
+  td.heatmap-cell.slot-rank-3 { outline: 3px solid #cd7f32; outline-offset: -2px; position: relative; }
+  td.heatmap-cell .rank-overlay {
+    position: absolute;
+    top: 2px; right: 2px;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    z-index: 1;
+    box-shadow: 0 1px 3px rgba(0,0,0,.25);
+  }
+  td.heatmap-cell .rank-overlay.ro-1 { background: #f1c40f; }
+  td.heatmap-cell .rank-overlay.ro-2 { background: #95a5a6; }
+  td.heatmap-cell .rank-overlay.ro-3 { background: #cd7f32; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Расписание НГУ</h1>
+  <div class="group-select-wrap" id="group-select-wrap">
+    <input id="group-search" type="text" placeholder="Введите номер группы…" autocomplete="off">
+    <div id="dropdown" class="dropdown"></div>
+  </div>
+  <button class="mode-btn" id="btn-schedule" onclick="switchMode('schedule')" title="Расписание группы">Расписание</button>
+  <button class="mode-btn" id="btn-heatmap" onclick="switchMode('heatmap')" title="Загруженность">Загруженность</button>
+</div>
+
+<div id="heatmap-panel" class="heatmap-panel">
+  <div class="filter-bar">
+    <select id="hf-faculty"><option value="">Факультет…</option></select>
+    <select id="hf-specialty"><option value="">Специальность…</option></select>
+    <select id="hf-degree"><option value="">Ступень…</option></select>
+    <select id="hf-year"><option value="">Курс…</option></select>
+    <select id="hf-group"><option value="">Группа…</option></select>
+    <button class="add-btn" onclick="addFilter()">+ Добавить</button>
+    <span class="week-toggle">
+      <button id="wt-all" class="active" onclick="setWeekFilter('all')">Всё</button>
+      <button id="wt-odd" onclick="setWeekFilter('odd')">Нч</button>
+      <button id="wt-even" onclick="setWeekFilter('even')">Чт</button>
+    </span>
+  </div>
+  <div class="chips-area" id="chips-area">
+    <span class="chip-hint">Добавьте фильтры — можно комбинировать разные наборы</span>
+  </div>
+  <div id="prediction-panel" class="prediction-panel">
+    <h3>🎯 Рекомендация слотов для мероприятия</h3>
+    <div class="pred-controls">
+      <span class="pred-section-label">📍 Место:</span>
+      <select id="pred-location" title="Место проведения">
+        <option value="1">НК / КПА</option>
+        <option value="2">ГК / ЛК</option>
+      </select>
+      <span class="pred-section-label">🕐 Пары:</span>
+      <select id="pred-morning" title="Самый ранний слот">
+        <option value="1">с 1-й</option>
+        <option value="2">с 2-й</option>
+        <option value="3" selected>с 3-й</option>
+        <option value="4">с 4-й</option>
+        <option value="5">с 5-й</option>
+        <option value="6">с 6-й</option>
+        <option value="7">с 7-й</option>
+      </select>
+      <span class="pred-sep">—</span>
+      <select id="pred-evening" title="Самый поздний слот">
+        <option value="1">до 1-й</option>
+        <option value="2">до 2-й</option>
+        <option value="3">до 3-й</option>
+        <option value="4">до 4-й</option>
+        <option value="5">до 5-й</option>
+        <option value="6" selected>до 6-й</option>
+        <option value="7">до 7-й</option>
+      </select>
+      <span class="pred-section-label">📅 Дни:</span>
+      <span class="pred-days">
+        <label><input type="checkbox" class="pred-day" value="1" checked> Пн</label>
+        <label><input type="checkbox" class="pred-day" value="2" checked> Вт</label>
+        <label><input type="checkbox" class="pred-day" value="3" checked> Ср</label>
+        <label><input type="checkbox" class="pred-day" value="4" checked> Чт</label>
+        <label><input type="checkbox" class="pred-day" value="5" checked> Пт</label>
+        <label><input type="checkbox" class="pred-day" value="6"> Сб</label>
+      </span>
+      <button class="pred-run-btn" onclick="runPrediction()">Рассчитать</button>
+    </div>
+    <div class="share-bar-inner">
+      <span class="share-label">🔗 Поделиться:</span>
+      <button class="share-btn" id="share-export-btn" onclick="exportShareCode()" style="display:none">📋 Копировать код</button>
+      <span id="share-code-display"></span>
+      <span class="share-import">
+        <input id="share-import-input" placeholder="Вставьте код..." title="Вставьте код для импорта результатов">
+        <button onclick="importShareCode()">📥 Импорт</button>
+      </span>
+    </div>
+  </div>
+</div>
+
+<div class="app-body">
+<div class="app-main">
+<div id="meta" class="meta" style="display:none;"></div>
+
+<div id="content">
+  <div class="placeholder" id="placeholder">
+    Выберите группу
+    <small>Начните вводить номер группы в поле поиска</small>
+  </div>
+</div>
+</div><!-- /.app-main -->
+
+<aside class="preset-sidebar" id="preset-sidebar">
+  <div class="preset-sidebar-inner">
+    <h3>📦 Пресеты</h3>
+    <button class="preset-save-btn-lg" onclick="savePreset()">💾 Сохранить текущие настройки</button>
+    <div class="preset-cards" id="preset-cards"></div>
+  </div>
+</aside>
+</div><!-- /.app-body -->
+
+<!-- Groups modal overlay -->
+<div class="groups-modal-overlay" id="groups-modal-overlay" onclick="if(event.target===this)closeGroupsModal()">
+  <div class="groups-modal">
+    <div class="gm-header">
+      <h3 id="gm-title">Группы</h3>
+      <button class="gm-close" onclick="closeGroupsModal()">&times;</button>
+    </div>
+    <div class="gm-body" id="gm-body"></div>
+  </div>
+</div>
+
+<script>
+/* ================================================================
+   Data & State
+   ================================================================ */
+let DATA = null;          // entire nsu_data.json
+let groupIndex = [];      // [{id, label, search}, ...]
+let currentGroup = null;
+
+const DAY_NAMES = ['', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
+const TYPE_LABELS = { lecture: 'лек', seminar: 'пр', labs: 'лаб', elective: 'фак', other: '' };
+const TYPE_FULL   = { lecture: 'Лекция', seminar: 'Семинар', labs: 'Лаб. работа', elective: 'Факультатив', other: 'Другое' };
+
+/* ================================================================
+   Bootstrap — load JSON
+   ================================================================ */
+fetch('nsu_data.json')
+  .then(r => r.json())
+  .then(d => {
+    DATA = d;
+    buildGroupIndex();
+    restoreFromHash();
+  })
+  .catch(err => {
+    document.getElementById('placeholder').innerHTML =
+      'Ошибка загрузки данных<small>' + err.message + '</small>';
+  });
+
+function buildGroupIndex() {
+  groupIndex = Object.keys(DATA.groups).map(id => {
+    const g = DATA.groups[id];
+    const parts = [id];
+    if (g.faculty_name) parts.push(g.faculty_name);
+    if (g.specialty)    parts.push(g.specialty);
+    if (g.degree)       parts.push(g.degree);
+    if (g.year)         parts.push(g.year + ' курс');
+    const label = id + '  —  ' + [g.faculty_name, g.specialty, g.degree, g.year ? g.year + ' курс' : ''].filter(Boolean).join(', ');
+    return { id, label, search: label.toLowerCase() };
+  });
+  // sort by group id naturally
+  groupIndex.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+}
+
+/* ================================================================
+   Dropdown / Search
+   ================================================================ */
+const searchInput = document.getElementById('group-search');
+const dropdown    = document.getElementById('dropdown');
+let activeIdx = -1;
+
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.trim().toLowerCase();
+  if (!q) { dropdown.classList.remove('show'); return; }
+  const matches = groupIndex.filter(g => g.search.includes(q)).slice(0, 60);
+  renderDropdown(matches);
+});
+
+searchInput.addEventListener('focus', () => {
+  if (searchInput.value.trim()) searchInput.dispatchEvent(new Event('input'));
+});
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.group-select-wrap')) dropdown.classList.remove('show');
+});
+
+searchInput.addEventListener('keydown', e => {
+  const items = dropdown.querySelectorAll('.opt');
+  if (!items.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = Math.min(activeIdx + 1, items.length - 1); highlightItem(items); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = Math.max(activeIdx - 1, 0); highlightItem(items); }
+  else if (e.key === 'Enter' && activeIdx >= 0) { e.preventDefault(); items[activeIdx].click(); }
+});
+
+function renderDropdown(matches) {
+  activeIdx = -1;
+  if (!matches.length) { dropdown.classList.remove('show'); return; }
+  dropdown.innerHTML = matches.map(m =>
+    `<div class="opt" data-id="${m.id}">${esc(m.label)}</div>`
+  ).join('');
+  dropdown.classList.add('show');
+  dropdown.querySelectorAll('.opt').forEach(el => {
+    el.addEventListener('click', () => {
+      selectGroup(el.dataset.id);
+      dropdown.classList.remove('show');
+    });
+  });
+}
+
+function highlightItem(items) {
+  items.forEach((el, i) => el.classList.toggle('active', i === activeIdx));
+  if (items[activeIdx]) items[activeIdx].scrollIntoView({ block: 'nearest' });
+}
+
+function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+/* ================================================================
+   Room Location Classification (LOCATION_DISTINCTION.md)
+   ================================================================ */
+function classifyRoom(roomId) {
+  if (roomId == null) return 5;
+  // Rule 1
+  if (roomId.startsWith('nk_')) return 1;
+  // Rule 2
+  if (roomId.startsWith('gk_') || roomId.startsWith('lk_') || roomId.startsWith('au_')) return 2;
+  // Rule 3
+  if (roomId.includes('\u041a\u041f\u0410')) return 1; // КПА
+  // Rule 4
+  if (roomId.includes('Google Meet') || roomId.includes('BigBlueButton') || roomId.includes('\u042f\u043d\u0434\u0435\u043a\u0441.\u0422\u0435\u043b\u0435\u043c\u043e\u0441\u0442')) return 3;
+  // Rule 5
+  if (roomId.includes('\u041c\u041d\u041e\u0426')) return 4; // МНОЦ
+  // Rule 6
+  if (roomId === '\u0410\u0443\u0434. \u0421\u043f\u043e\u0440\u0442\u0438\u0432\u043d\u044b\u0439 \u043a\u043e\u043c\u043f\u043b\u0435\u043a\u0441') return 4; // Ауд. Спортивный комплекс
+  // Rule 7
+  if (roomId.includes('\u041f\u0438\u0440\u043e\u0433\u043e\u0432\u0430')) return 4; // Пирогова
+  // Rule 8
+  if (roomId.startsWith('\u0410\u0443\u0434. ')) { // Ауд. 
+    const remainder = roomId.slice(5); // length of 'Ауд. ' = 5
+    if (/^\u0442?\d{4}(_\S+)?$/.test(remainder)) return 1; // ^т?\d{4}(_\S+)?$
+  }
+  // Rule 9
+  if (roomId.includes('\u0413\u041a') || roomId.includes('\u041b\u041a')) return 2; // ГК or ЛК
+  // Rule 10
+  const offCampusKeys = ['\u0418\u043d\u0441\u0442\u0438\u0442\u0443\u0442', '\u0424\u0413\u0411\u0423\u041d', '\u0424\u0413\u0411\u041d\u0423', '\u0413\u0411\u0423\u0417', '\u041a\u043b\u0438\u043d\u0438\u0447\u0435\u0441\u043a\u0438\u0435 \u0431\u0430\u0437\u044b', '\u0412\u041a\u0418', '\u041a\u042e\u0422', '\u0411\u0430\u0437\u044b \u043f\u0440\u0430\u043a\u0442\u0438\u043a'];
+  for (const kw of offCampusKeys) {
+    if (roomId.includes(kw)) return 5;
+  }
+  // Rule 11 — fallback
+  return 5;
+}
+
+const LOC_GROUP_NAMES = {
+  1: '\u041d\u041a/\u041a\u041f\u0410',   // НК/КПА
+  2: '\u0413\u041a/\u041b\u041a',         // ГК/ЛК
+  3: '\u041e\u043d\u043b\u0430\u0439\u043d', // Онлайн
+  4: '\u041a\u0430\u043c\u043f\u0443\u0441', // Кампус
+  5: '\u0412\u043d\u0435/\u041d\u0435\u044f\u0441\u043d\u043e' // Вне/Неясно
+};
+
+/* ================================================================
+   Event Timeslot Recommendation Algorithm
+   ================================================================ */
+const W_PROXIMITY  = 3.0;
+const W_LOCATION   = 3.0;
+const W_SANDWICH   = 2.0;
+const W_DEPARTURE  = 2.0;
+const BUCKET_THRESHOLD = 4.0;
+const PROXIMITY_DECAY = { 1: 1.0, 2: 0.55, 3: 0.25, 4: 0.1 };
+const DIRECTION_MOD_EARLY   = 0.6;
+const DIRECTION_MOD_LATE    = 0.8;
+const DIRECTION_MOD_BETWEEN = 1.0;
+const ELECTIVE_PROXIMITY_DISCOUNT = 0.7;
+const SOFT_CONFLICT_PENALTY       = 1.0;
+const LATE_HOUR_FACTOR = { 1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0, 5: 0.95, 6: 0.85, 7: 0.7 };
+const TIREDNESS_TABLE  = { 1: 1.0, 2: 0.95, 3: 0.9, 4: 0.85 }; // >=5 → 0.8
+
+function generateCandidates(allowedDays, morningCutoff, eveningCutoff) {
+  const candidates = [];
+  for (const d of allowedDays) {
+    for (let s = morningCutoff; s <= eveningCutoff; s++) {
+      candidates.push({ day: d, slot: s });
+    }
+  }
+  return candidates;
+}
+
+function getClassesToday(group, day, weekParity) {
+  const classes = [];
+  for (const e of group.schedule) {
+    if (e.day !== day) continue;
+    if (e.week != null && e.week !== weekParity) continue;
+    classes.push(Object.assign({}, e)); // shallow clone
+  }
+  return classes;
+}
+
+function computeL(refLocGroup, eventLocation) {
+  if (refLocGroup === eventLocation) return 1.0;
+  if ((refLocGroup === 1 || refLocGroup === 2) && (eventLocation === 1 || eventLocation === 2)) return 0.75;
+  if (refLocGroup === 4) return 0.5;
+  if (refLocGroup === 3) return 0.2;
+  return 0.0;
+}
+
+function scoreGroup(group, day, eventSlot, weekParity, eventLocation) {
+  // 4.1 Get today's classes and classify
+  let classesToday = getClassesToday(group, day, weekParity);
+  for (const c of classesToday) {
+    if (c.room_id == null) {
+      c.loc_group = 5;
+    } else {
+      c.loc_group = classifyRoom(c.room_id);
+    }
+    c.is_anchor = (c.loc_group === 1 || c.loc_group === 2 || c.loc_group === 4);
+  }
+
+  // 4.2 Conflict check
+  const conflicts = classesToday.filter(c => c.slot === eventSlot);
+  if (conflicts.some(c => c.type !== 'elective')) {
+    return { bucket: 'have_class', score: null, detail: { reason: 'conflict', conflicts } };
+  }
+  let softConflict = false;
+  if (conflicts.length > 0) {
+    softConflict = true;
+    classesToday = classesToday.filter(c => c.slot !== eventSlot);
+  }
+
+  // 4.3 Empty day
+  if (classesToday.length === 0) {
+    return { bucket: 'less_likely', score: 0.0, detail: { reason: 'empty_day' } };
+  }
+
+  // 4.4 Campus presence factor
+  const anchorClasses = classesToday.filter(c => c.is_anchor);
+  const onlineClasses = classesToday.filter(c => c.loc_group === 3);
+  let campusFactor;
+  if (anchorClasses.length >= 2) campusFactor = 1.0;
+  else if (anchorClasses.length === 1) campusFactor = 0.6;
+  else if (onlineClasses.length > 0) campusFactor = 0.15;
+  else campusFactor = 0.1;
+
+  // 4.5 Nearest classes
+  const beforeAll = classesToday.filter(c => c.slot < eventSlot);
+  const afterAll  = classesToday.filter(c => c.slot > eventSlot);
+  const anyBefore = beforeAll.length ? beforeAll.reduce((a, b) => a.slot > b.slot ? a : b) : null;
+  const anyAfter  = afterAll.length  ? afterAll.reduce((a, b) => a.slot < b.slot ? a : b) : null;
+
+  const anchorBefore = anchorClasses.filter(c => c.slot < eventSlot);
+  const anchorAfter  = anchorClasses.filter(c => c.slot > eventSlot);
+  const nearestAnchorBefore = anchorBefore.length ? anchorBefore.reduce((a, b) => a.slot > b.slot ? a : b) : null;
+  const nearestAnchorAfter  = anchorAfter.length  ? anchorAfter.reduce((a, b) => a.slot < b.slot ? a : b) : null;
+
+  // 4.6 Proximity P
+  const gapAnchorBefore = nearestAnchorBefore ? eventSlot - nearestAnchorBefore.slot : Infinity;
+  const gapAnchorAfter  = nearestAnchorAfter  ? nearestAnchorAfter.slot - eventSlot  : Infinity;
+  const minAnchorGap = Math.min(gapAnchorBefore, gapAnchorAfter);
+
+  let baseGap;
+  if (minAnchorGap < Infinity) {
+    baseGap = minAnchorGap;
+  } else {
+    const gapAnyBefore = anyBefore ? eventSlot - anyBefore.slot : Infinity;
+    const gapAnyAfter  = anyAfter  ? anyAfter.slot - eventSlot  : Infinity;
+    baseGap = Math.min(gapAnyBefore, gapAnyAfter);
+  }
+
+  let P_base = PROXIMITY_DECAY[baseGap] !== undefined ? PROXIMITY_DECAY[baseGap] : 0.0;
+
+  // Direction modifier
+  let directionMod;
+  let directionLabel;
+  if (nearestAnchorBefore == null && nearestAnchorAfter != null) {
+    directionMod = DIRECTION_MOD_EARLY;
+    directionLabel = 'до первой (×0.6)';
+  } else if (nearestAnchorAfter == null && nearestAnchorBefore != null) {
+    directionMod = DIRECTION_MOD_LATE;
+    directionLabel = 'после последней (×0.8)';
+  } else {
+    directionMod = DIRECTION_MOD_BETWEEN;
+    directionLabel = 'между парами (×1.0)';
+  }
+  let P = P_base * directionMod;
+
+  // 4.7 Location factor L
+  let L = 0;
+  let refClass = null;
+
+  if (minAnchorGap < Infinity) {
+    if (nearestAnchorBefore != null && nearestAnchorAfter != null) {
+      // Sandwiched — pick better L
+      const sameSlotBefore = anchorClasses.filter(c => c.slot === nearestAnchorBefore.slot);
+      const sameSlotAfter  = anchorClasses.filter(c => c.slot === nearestAnchorAfter.slot);
+      let lBefore = 0, refBefore = null;
+      for (const c of sameSlotBefore) {
+        const val = computeL(c.loc_group, eventLocation);
+        if (val > lBefore) { lBefore = val; refBefore = c; }
+      }
+      let lAfter = 0, refAfter = null;
+      for (const c of sameSlotAfter) {
+        const val = computeL(c.loc_group, eventLocation);
+        if (val > lAfter) { lAfter = val; refAfter = c; }
+      }
+      if (lBefore >= lAfter) { L = lBefore; refClass = refBefore; }
+      else { L = lAfter; refClass = refAfter; }
+    } else if (nearestAnchorBefore != null) {
+      const sameSlot = anchorClasses.filter(c => c.slot === nearestAnchorBefore.slot);
+      for (const c of sameSlot) {
+        const val = computeL(c.loc_group, eventLocation);
+        if (val > L) { L = val; refClass = c; }
+      }
+    } else {
+      const sameSlot = anchorClasses.filter(c => c.slot === nearestAnchorAfter.slot);
+      for (const c of sameSlot) {
+        const val = computeL(c.loc_group, eventLocation);
+        if (val > L) { L = val; refClass = c; }
+      }
+    }
+  } else {
+    // No anchors — best among all today
+    for (const c of classesToday) {
+      const val = computeL(c.loc_group, eventLocation);
+      if (val > L) { L = val; refClass = c; }
+    }
+  }
+
+  // 4.8 Elective proximity discount
+  let electiveDiscount = false;
+  if (refClass && refClass.type === 'elective') {
+    P *= ELECTIVE_PROXIMITY_DISCOUNT;
+    electiveDiscount = true;
+  }
+
+  // 4.9 Sandwich factor S
+  let S = 0;
+  const isSandwiched = anyBefore != null && anyAfter != null;
+  if (isSandwiched) {
+    const bAnchor = anyBefore.is_anchor;
+    const aAnchor = anyAfter.is_anchor;
+    const aLoc = anyAfter.loc_group;
+    const bLoc = anyBefore.loc_group;
+    if (bAnchor && aAnchor) S = 1.0;
+    else if (bAnchor && aLoc === 3) S = 0.5;
+    else if (bLoc === 3 && aAnchor) S = 0.5;
+    // all other cases: S = 0
+  }
+
+  // 4.10 Departure pressure penalty D
+  let D = 0;
+  if (anyAfter && anyAfter.loc_group === 5) {
+    const gapToDeparture = anyAfter.slot - eventSlot;
+    if (gapToDeparture === 1) D = -W_DEPARTURE;
+    else if (gapToDeparture === 2) D = -W_DEPARTURE / 2;
+  }
+
+  // 4.11 Tiredness factor
+  const slotsBefore = [...new Set(classesToday.filter(c => c.slot < eventSlot).map(c => c.slot))];
+  let tirednessFactor = 1.0;
+  let effectiveLoad = 0;
+  if (slotsBefore.length > 0) {
+    const classCount = slotsBefore.length;
+    const firstSlot = Math.min(...slotsBefore);
+    const totalSpan = eventSlot - firstSlot;
+    const gapCount = totalSpan - classCount;
+    effectiveLoad = classCount - 0.5 * gapCount;
+    if (effectiveLoad <= 1) tirednessFactor = 1.0;
+    else if (effectiveLoad <= 4) tirednessFactor = TIREDNESS_TABLE[Math.floor(effectiveLoad)] || 0.8;
+    else tirednessFactor = 0.8;
+  }
+
+  // 4.12 Late-hour factor
+  const lateHourFactor = LATE_HOUR_FACTOR[eventSlot] || 1.0;
+
+  // 4.13 Combine
+  let rawScore = W_PROXIMITY * P + W_LOCATION * L + W_SANDWICH * S + D;
+  rawScore = Math.max(rawScore, 0);
+  let score = rawScore * campusFactor * tirednessFactor * lateHourFactor;
+  if (softConflict) score = Math.max(score - SOFT_CONFLICT_PENALTY, 0);
+
+  // 4.14 Bucket
+  const bucket = score >= BUCKET_THRESHOLD ? 'more_likely' : 'less_likely';
+
+  // Build detail object for UI
+  const detail = {
+    reason: 'scored',
+    classesToday,
+    softConflict,
+    campusFactor,
+    anchorCount: anchorClasses.length,
+    onlineCount: onlineClasses.length,
+    baseGap,
+    P_base,
+    directionMod,
+    directionLabel,
+    electiveDiscount,
+    P, L, S, D,
+    refClass,
+    isSandwiched,
+    tirednessFactor,
+    effectiveLoad,
+    lateHourFactor,
+    rawScore,
+    score
+  };
+
+  return { bucket, score, detail };
+}
+
+function findBestEventSlots(groupsDict, weekParity, morningCutoff, eveningCutoff, eventLocation, allowedDays) {
+  const candidates = generateCandidates(allowedDays, morningCutoff, eveningCutoff);
+  const results = [];
+
+  for (const { day, slot } of candidates) {
+    let totalScore = 0;
+    const moreLikely = [];
+    const lessLikely = [];
+    const haveClass  = [];
+
+    const groupDetails = {}; // gid → {bucket, score, detail}
+    for (const [gid, group] of Object.entries(groupsDict)) {
+      const result = scoreGroup(group, day, slot, weekParity, eventLocation);
+      groupDetails[gid] = result;
+      if (result.bucket === 'have_class') {
+        haveClass.push(gid);
+      } else if (result.bucket === 'more_likely') {
+        moreLikely.push(gid);
+        totalScore += result.score;
+      } else {
+        lessLikely.push(gid);
+        totalScore += result.score;
+      }
+    }
+
+    results.push({
+      day, slot, totalScore,
+      moreCount: moreLikely.length,
+      haveClassCount: haveClass.length,
+      moreLikely, lessLikely, haveClass,
+      groupDetails
+    });
+  }
+
+  results.sort((a, b) => {
+    if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
+    if (b.moreCount !== a.moreCount) return b.moreCount - a.moreCount;
+    return a.haveClassCount - b.haveClassCount;
+  });
+
+  return results.slice(0, 3);
+}
+
+/* ================================================================
+   Prediction UI State
+   ================================================================ */
+let lastPredictionResults = null;
+
+function collectHeatmapGroupIds() {
+  if (!heatFilters.length) {
+    return Object.assign({}, DATA.groups);
+  }
+  const idSet = new Set();
+  for (const f of heatFilters) {
+    for (const [gid, g] of Object.entries(DATA.groups)) {
+      if (f.group) { if (gid === f.group) idSet.add(gid); continue; }
+      if (f.faculty   && g.faculty_id !== f.faculty) continue;
+      if (f.specialty && g.specialty  !== f.specialty) continue;
+      if (f.degree    && !degreeMatches(f.degree, g.degree)) continue;
+      if (f.year      && String(g.year) !== f.year) continue;
+      idSet.add(gid);
+    }
+  }
+  const result = {};
+  for (const id of idSet) result[id] = DATA.groups[id];
+  return result;
+}
+
+function runPrediction() {
+  const eventLocation = parseInt(document.getElementById('pred-location').value);
+  const morningCutoff = parseInt(document.getElementById('pred-morning').value);
+  const eveningCutoff = parseInt(document.getElementById('pred-evening').value);
+
+  if (eveningCutoff < morningCutoff) {
+    alert('\u041f\u043e\u0441\u043b\u0435\u0434\u043d\u044f\u044f \u043f\u0430\u0440\u0430 \u043d\u0435 \u043c\u043e\u0436\u0435\u0442 \u0431\u044b\u0442\u044c \u0440\u0430\u043d\u044c\u0448\u0435 \u043f\u0435\u0440\u0432\u043e\u0439'); // Последняя пара не может быть раньше первой
+    return;
+  }
+
+  const dayCheckboxes = document.querySelectorAll('.pred-day');
+  const allowedDays = [];
+  dayCheckboxes.forEach(cb => { if (cb.checked) allowedDays.push(parseInt(cb.value)); });
+  if (!allowedDays.length) {
+    alert('\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0445\u043e\u0442\u044f \u0431\u044b \u043e\u0434\u0438\u043d \u0434\u0435\u043d\u044c'); // Выберите хотя бы один день
+    return;
+  }
+
+  const weekParity = heatWeekFilter; // 'odd' or 'even'
+  const groupsDict = collectHeatmapGroupIds();
+
+  if (!Object.keys(groupsDict).length) {
+    alert('\u041d\u0435\u0442 \u0433\u0440\u0443\u043f\u043f \u0434\u043b\u044f \u0430\u043d\u0430\u043b\u0438\u0437\u0430'); // Нет групп для анализа
+    return;
+  }
+
+  const top3 = findBestEventSlots(groupsDict, weekParity, morningCutoff, eveningCutoff, eventLocation, allowedDays);
+  lastPredictionResults = top3;
+
+  renderHeatmap(); // re-render to apply highlights + results
+  saveHash();
+}
+
+function renderPredictionResults(top3) {
+  const container = document.getElementById('content');
+  if (!top3 || !top3.length) return;
+
+  const rankLabels = ['\ud83e\udd47', '\ud83e\udd48', '\ud83e\udd49'];
+
+  let html = '<div class="prediction-results">';
+  top3.forEach((r, i) => {
+    const bell = DATA.bell_schedule[String(r.slot)];
+    const dayName = DAY_NAMES[r.day];
+    html += `<div class="result-card rank-${i + 1}">`;
+    html += `<div class="result-card-header">`;
+    html += `<span class="rank-badge">${rankLabels[i]}</span>`;
+    html += `<span class="slot-info">${dayName}, ${r.slot}-я пара<br><small>${bell.half1} / ${bell.half2}</small></span>`;
+    html += `</div>`;
+    html += `<div class="result-card-body">`;
+    const isImported = r._imported;
+    html += `<div class="stat-row clickable" onclick="${isImported ? '' : `openGroupsModal(${i},'more')`}"><span class="stat-label">Скорее всего придут</span><span class="stat-value green">${r.moreLikely.length}</span></div>`;
+    html += `<div class="stat-row clickable" onclick="${isImported ? '' : `openGroupsModal(${i},'less')`}"><span class="stat-label">Вряд ли придут</span><span class="stat-value orange">${r.lessLikely.length}</span></div>`;
+    html += `<div class="stat-row clickable" onclick="${isImported ? '' : `openGroupsModal(${i},'busy')`}"><span class="stat-label">Занятия в это время</span><span class="stat-value red">${r.haveClass.length}</span></div>`;
+    html += `<div class="stat-row"><span class="stat-label">Общий балл</span><span class="stat-value">${r.totalScore.toFixed(1)}</span></div>`;
+    html += `</div></div>`;
+  });
+  html += '</div>';
+
+  // Show share export button
+  const shareBtn = document.getElementById('share-export-btn');
+  if (shareBtn) shareBtn.style.display = '';
+
+  container.insertAdjacentHTML('beforeend', html);
+}
+
+/* ================================================================
+   Groups Modal — tree breakdown
+   ================================================================ */
+function openGroupsModal(rankIdx, tab) {
+  if (!lastPredictionResults || !lastPredictionResults[rankIdx]) return;
+  const r = lastPredictionResults[rankIdx];
+  const bell = DATA.bell_schedule[String(r.slot)];
+  const dayName = DAY_NAMES[r.day];
+
+  document.getElementById('gm-title').textContent =
+    dayName + ', ' + r.slot + '-я пара (' + bell.half1 + ')';
+
+  const body = document.getElementById('gm-body');
+
+  // Build tabs + tree content
+  const tabs = [
+    { key: 'more',  label: 'Скорее придут', ids: r.moreLikely, cls: 't-green', chipCls: 'gc-green' },
+    { key: 'less',  label: 'Вряд ли придут', ids: r.lessLikely, cls: 't-orange', chipCls: 'gc-orange' },
+    { key: 'busy',  label: 'Занятия', ids: r.haveClass, cls: 't-red', chipCls: 'gc-red' },
+  ];
+
+  let tabsHtml = '<div class="gm-tabs">';
+  tabs.forEach(t => {
+    const active = t.key === tab ? ' active' : '';
+    tabsHtml += `<button class="gm-tab ${t.cls}${active}" onclick="switchModalTab('${t.key}')" data-tab="${t.key}">${t.label}<span class="tab-count">${t.ids.length}</span></button>`;
+  });
+  tabsHtml += '</div>';
+
+  let contentHtml = '';
+  tabs.forEach(t => {
+    const display = t.key === tab ? '' : 'display:none;';
+    contentHtml += `<div class="gm-tab-content" data-tab="${t.key}" style="${display}">`;
+    contentHtml += buildGroupTree(t.ids, t.chipCls, rankIdx);
+    contentHtml += '</div>';
+  });
+
+  body.innerHTML = tabsHtml + contentHtml + '<div id="gm-detail-container"></div>';
+  document.getElementById('groups-modal-overlay').classList.add('open');
+}
+
+function switchModalTab(tabKey) {
+  const body = document.getElementById('gm-body');
+  body.querySelectorAll('.gm-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabKey);
+  });
+  body.querySelectorAll('.gm-tab-content').forEach(div => {
+    div.style.display = div.dataset.tab === tabKey ? '' : 'none';
+  });
+  // Clear detail card when switching tabs
+  const dc = document.getElementById('gm-detail-container');
+  if (dc) dc.innerHTML = '';
+}
+
+function buildGroupTree(groupIds, chipCls, rankIdx) {
+  if (!groupIds.length) return '<div class="gm-empty">Нет групп в этой категории</div>';
+
+  // Organize: faculty → specialty → groups
+  const tree = {}; // { facName: { specialty: [gid, ...] } }
+  const facOrder = [];
+
+  for (const gid of groupIds) {
+    const g = DATA.groups[gid];
+    if (!g) continue;
+    const fac = g.faculty_name || 'Без факультета';
+    const spec = g.specialty || 'Без специальности';
+
+    if (!tree[fac]) { tree[fac] = {}; facOrder.push(fac); }
+    if (!tree[fac][spec]) tree[fac][spec] = [];
+    tree[fac][spec].push(gid);
+  }
+
+  let html = '<div class="gm-tree">';
+  for (const fac of facOrder) {
+    const specs = tree[fac];
+    // Count total groups in this faculty
+    let facTotal = 0;
+    for (const gids of Object.values(specs)) facTotal += gids.length;
+
+    html += `<div class="gm-faculty">`;
+    html += `<div class="gm-fac-header" onclick="toggleFaculty(this)"><span class="arrow">▼</span> ${esc(fac)} <span class="gm-fac-count">(${facTotal})</span></div>`;
+    html += `<div class="gm-fac-body">`;
+
+    // Sort specialties alphabetically
+    const specNames = Object.keys(specs).sort();
+    for (const spec of specNames) {
+      // Sort groups within specialty by degree then year then id
+      const gids = specs[spec].sort((a, b) => {
+        const ga = DATA.groups[a], gb = DATA.groups[b];
+        const da = ga.degree || '', db = gb.degree || '';
+        if (da !== db) return da.localeCompare(db);
+        const ya = ga.year || 0, yb = gb.year || 0;
+        if (ya !== yb) return ya - yb;
+        return a.localeCompare(b, undefined, { numeric: true });
+      });
+      // Build chips with inline degree+year sub-labels
+      html += `<div class="gm-year-row">`;
+      html += `<span class="gm-year-label">${esc(spec)}:</span>`;
+      let prevDegYear = '';
+      for (const gid of gids) {
+        const g = DATA.groups[gid];
+        const degYear = (g.degree ? g.degree.replace('Бакалавриат','Бак').replace('Магистратура','Маг').replace('Аспирантура','Асп').replace('Специалитет','Бак') : '') + (g.year ? ' ' + g.year + 'к' : '');
+        if (degYear && degYear !== prevDegYear) {
+          html += `<span class="gm-dy-sep">${esc(degYear.trim())}</span>`;
+          prevDegYear = degYear;
+        }
+        html += `<span class="gm-group-chip ${chipCls}" onclick="showGroupDetail('${gid}',${rankIdx},event)" title="Подробнее о группе ${gid}">${gid}</span>`;
+      }
+      html += `</div>`;
+    }
+
+    html += `</div></div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+function toggleFaculty(header) {
+  header.classList.toggle('collapsed');
+  header.nextElementSibling.classList.toggle('collapsed');
+}
+
+function showGroupDetail(gid, rankIdx, event) {
+  const container = document.getElementById('gm-detail-container');
+  if (!container) return;
+  const g = DATA.groups[gid];
+  if (!g) return;
+
+  const r = lastPredictionResults && lastPredictionResults[rankIdx];
+  const info = r && r.groupDetails ? r.groupDetails[gid] : null;
+
+  let html = `<div class="gm-detail-card">`;
+  html += `<button class="gm-detail-close" onclick="this.parentElement.remove()">&times;</button>`;
+  html += `<h4>Группа ${esc(gid)}</h4>`;
+  html += `<div class="gm-detail-meta">`;
+  html += [g.faculty_name, g.specialty, g.degree, g.year ? g.year + ' курс' : ''].filter(Boolean).join(' • ');
+  html += `</div>`;
+
+  if (!info) {
+    html += `<div style="color:#aaa;font-size:12px;">Нет данных о расчёте</div>`;
+  } else {
+    const d = info.detail;
+    const bucketLabels = { have_class: 'Занятия', more_likely: 'Скорее придут', less_likely: 'Вряд ли придут' };
+    const bucketColors = { have_class: 'sb-red', more_likely: 'sb-green', less_likely: 'sb-orange' };
+
+    html += `<div class="score-breakdown">`;
+
+    // Bucket + final score
+    html += `<div class="sb-row"><span class="sb-label">Категория</span><span class="sb-value"><span class="sb-tag ${bucketColors[info.bucket]}">${bucketLabels[info.bucket]}</span></span></div>`;
+
+    if (d.reason === 'conflict') {
+      html += `<div class="sb-row"><span class="sb-label">Причина</span><span class="sb-value" style="color:#e74c3c">Обязательное занятие в этот слот</span></div>`;
+      // Show conflicting classes
+      for (const c of d.conflicts) {
+        const roomName = c.room_id ? (DATA.rooms[c.room_id] || c.room_id) : '—';
+        html += `<div class="sb-row"><span class="sb-label" style="padding-left:12px">${esc(c.subject)}</span><span class="sb-formula">${TYPE_LABELS[c.type] || ''} • ${esc(roomName)}</span></div>`;
+      }
+    } else if (d.reason === 'empty_day') {
+      html += `<div class="sb-row"><span class="sb-label">Причина</span><span class="sb-value" style="color:#e67e22">Нет занятий в этот день</span></div>`;
+      html += `<div class="sb-row sb-total"><span class="sb-label">Итоговый балл</span><span class="sb-value">0.0</span></div>`;
+    } else {
+      // Full scoring breakdown
+      html += `<div class="sb-row sb-section"><span>Контекст дня</span></div>`;
+      html += `<div class="sb-row"><span class="sb-label">Пар в этот день</span><span class="sb-value">${d.classesToday.length}</span></div>`;
+      html += `<div class="sb-row"><span class="sb-label">Из них на кампусе</span><span class="sb-value">${d.anchorCount}</span></div>`;
+      html += `<div class="sb-row"><span class="sb-label">Онлайн</span><span class="sb-value">${d.onlineCount}</span></div>`;
+      html += `<div class="sb-row"><span class="sb-label">Множитель присутствия</span><span class="sb-value">×${d.campusFactor}</span></div>`;
+      if (d.softConflict) {
+        html += `<div class="sb-row"><span class="sb-label">Мягкий конфликт (факультатив)</span><span class="sb-value" style="color:#e67e22">−${SOFT_CONFLICT_PENALTY.toFixed(1)}</span></div>`;
+      }
+
+      html += `<div class="sb-row sb-section"><span>Компоненты скоринга</span></div>`;
+
+      // Proximity
+      html += `<div class="sb-row"><span class="sb-label">Близость (P)</span><span class="sb-value">${d.P.toFixed(2)}</span></div>`;
+      html += `<div class="sb-row"><span class="sb-formula" style="padding-left:12px">зазор ${d.baseGap === Infinity ? '∞' : d.baseGap} → ${d.P_base.toFixed(2)}, направление: ${d.directionLabel}${d.electiveDiscount ? ', факультатив ×0.7' : ''}</span></div>`;
+
+      // Location
+      const refRoomName = d.refClass && d.refClass.room_id ? (DATA.rooms[d.refClass.room_id] || d.refClass.room_id) : '—';
+      const refLocName = d.refClass ? (LOC_GROUP_NAMES[d.refClass.loc_group] || '?') : '—';
+      html += `<div class="sb-row"><span class="sb-label">Корпус (L)</span><span class="sb-value">${d.L.toFixed(2)}</span></div>`;
+      html += `<div class="sb-row"><span class="sb-formula" style="padding-left:12px">ближ. ауд.: ${esc(refRoomName)} (${refLocName})</span></div>`;
+
+      // Sandwich
+      html += `<div class="sb-row"><span class="sb-label">Бутерброд (S)</span><span class="sb-value">${d.S.toFixed(2)}</span></div>`;
+      html += `<div class="sb-row"><span class="sb-formula" style="padding-left:12px">${d.isSandwiched ? 'между парами' : 'нет обрамления'}</span></div>`;
+
+      // Departure
+      html += `<div class="sb-row"><span class="sb-label">Штраф отъезда (D)</span><span class="sb-value">${d.D.toFixed(2)}</span></div>`;
+
+      html += `<div class="sb-row sb-section"><span>Множители</span></div>`;
+      html += `<div class="sb-row"><span class="sb-label">Усталость (T)</span><span class="sb-value">×${d.tirednessFactor.toFixed(2)}</span></div>`;
+      html += `<div class="sb-row"><span class="sb-formula" style="padding-left:12px">нагрузка: ${d.effectiveLoad.toFixed(1)} пар до мероприятия</span></div>`;
+      html += `<div class="sb-row"><span class="sb-label">Вечерний фактор</span><span class="sb-value">×${d.lateHourFactor.toFixed(2)}</span></div>`;
+
+      // Formula
+      html += `<div class="sb-row sb-section"><span>Итог</span></div>`;
+      html += `<div class="sb-row"><span class="sb-formula">raw = 3×${d.P.toFixed(2)} + 3×${d.L.toFixed(2)} + 2×${d.S.toFixed(2)} + (${d.D.toFixed(2)}) = ${d.rawScore.toFixed(2)}</span></div>`;
+      html += `<div class="sb-row"><span class="sb-formula">score = ${d.rawScore.toFixed(2)} × ${d.campusFactor} × ${d.tirednessFactor.toFixed(2)} × ${d.lateHourFactor.toFixed(2)}${d.softConflict ? ' − ' + SOFT_CONFLICT_PENALTY.toFixed(1) : ''} = ${d.score.toFixed(2)}</span></div>`;
+      html += `<div class="sb-row"><span class="sb-formula">порог: ${BUCKET_THRESHOLD.toFixed(1)} → ${d.score >= BUCKET_THRESHOLD ? 'скорее придут' : 'вряд ли'}</span></div>`;
+      html += `<div class="sb-row sb-total"><span class="sb-label">Итоговый балл</span><span class="sb-value">${d.score.toFixed(2)}</span></div>`;
+    }
+
+    html += `</div>`;
+  }
+  html += `</div>`;
+
+  container.innerHTML = html;
+  container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeGroupsModal() {
+  document.getElementById('groups-modal-overlay').classList.remove('open');
+}
+
+function highlightPredictedSlots(top3) {
+  if (!top3 || !top3.length) return;
+  const table = document.querySelector('table.schedule');
+  if (!table) return;
+  const rows = table.querySelectorAll('tbody tr');
+  top3.forEach((r, idx) => {
+    const rank = idx + 1;
+    // row index = slot - 1, column = day (1-based in table: col 0 = time, col 1 = day 1, etc.)
+    const row = rows[r.slot - 1];
+    if (!row) return;
+    const cell = row.children[r.day]; // day 1 → index 1 (index 0 is time cell)
+    if (!cell) return;
+    cell.classList.add('slot-rank-' + rank);
+    // Add rank overlay badge
+    const rankEmojis = ['\ud83e\udd47', '\ud83e\udd48', '\ud83e\udd49'];
+    const overlay = document.createElement('span');
+    overlay.className = 'rank-overlay ro-' + rank;
+    overlay.textContent = rankEmojis[idx];
+    cell.style.position = 'relative';
+    cell.appendChild(overlay);
+  });
+}
+
+/* ================================================================
+   Select & Render
+   ================================================================ */
+function selectGroup(gid) {
+  currentGroup = gid;
+  const g = DATA.groups[gid];
+  searchInput.value = gid;
+  saveHash();
+
+  // Meta
+  const metaEl = document.getElementById('meta');
+  metaEl.style.display = '';
+  metaEl.innerHTML = [
+    g.faculty_name ? `<span>${esc(g.faculty_name)}</span>` : '',
+    g.specialty    ? `<span>${esc(g.specialty)}</span>` : '',
+    g.degree       ? `<span>${esc(g.degree)}</span>` : '',
+    g.year         ? `<span>${g.year} курс</span>` : '',
+    `<span>Группа ${esc(gid)}</span>`,
+  ].filter(Boolean).join('');
+
+  renderSchedule(g);
+}
+
+function renderSchedule(group) {
+  const container = document.getElementById('content');
+
+  // Always show all days and all time slots
+  const days = [1,2,3,4,5,6];
+  const slots = [1,2,3,4,5,6,7];
+
+  // Build lookup: key = "day-slot" -> [entries]
+  const lookup = {};
+  for (const c of group.schedule) {
+    const key = c.day + '-' + c.slot;
+    (lookup[key] = lookup[key] || []).push(c);
+  }
+
+  // Build table
+  let html = '<div class="table-wrap"><table class="schedule">';
+  html += '<colgroup><col class="col-time">';
+  for (const d of days) html += '<col class="col-day">';
+  html += '</colgroup>';
+
+  // Header
+  html += '<thead><tr><th>Время</th>';
+  for (const d of days) html += `<th>${DAY_NAMES[d]}</th>`;
+  html += '</tr></thead><tbody>';
+
+  for (const s of slots) {
+    const bell = DATA.bell_schedule[String(s)];
+    html += '<tr>';
+    html += `<td class="time-cell"><div class="slot-num">${s}</div>${bell.half1}<br>${bell.half2}</td>`;
+    for (const d of days) {
+      const entries = lookup[d + '-' + s];
+      if (!entries) { html += '<td class="day-cell empty"></td>'; continue; }
+      html += '<td class="day-cell">';
+      for (const c of entries) {
+        html += renderCard(c);
+      }
+      html += '</td>';
+    }
+    html += '</tr>';
+  }
+
+  html += '</tbody></table></div>';
+
+  // Legend
+  html += `<div class="legend">
+    <span><span class="swatch type-lecture"></span>Лекция</span>
+    <span><span class="swatch type-seminar"></span>Семинар</span>
+    <span><span class="swatch type-labs"></span>Лаб. работа</span>
+    <span><span class="swatch type-elective"></span>Факультатив</span>
+    <span><span class="swatch" style="background:#e67e22"></span>нч — нечётная неделя</span>
+    <span><span class="swatch" style="background:#27ae60"></span>чт — чётная неделя</span>
+  </div>`;
+
+  container.innerHTML = html;
+}
+
+function renderCard(c) {
+  const teacherName = c.teacher_id ? DATA.teachers[c.teacher_id] || '' : '';
+  const roomName    = c.room_id   ? DATA.rooms[c.room_id]       || '' : '';
+  const subjectTitle = c.subject_full || c.subject;
+
+  let weekTag = '';
+  if (c.week === 'odd')  weekTag = '<span class="week-tag odd">нч</span> ';
+  if (c.week === 'even') weekTag = '<span class="week-tag even">чт</span> ';
+
+  const typeBadge = `<span class="type-badge type-${c.type}" title="${esc(TYPE_FULL[c.type] || '')}">${esc(TYPE_LABELS[c.type] || '')}</span>`;
+
+  const weekClass = c.week === 'odd' ? ' week-odd' : c.week === 'even' ? ' week-even' : '';
+  return `<div class="class-card t-${c.type}${weekClass}" title="${esc(subjectTitle)}">
+    ${weekTag}<span class="subject">${esc(c.subject)}</span>${typeBadge}
+    ${teacherName ? `<div class="teacher">${esc(teacherName)}</div>` : ''}
+    ${roomName    ? `<div class="room">${esc(roomName)}</div>`       : ''}
+  </div>`;
+}
+
+/* ================================================================
+   Mode switching
+   ================================================================ */
+let currentMode = 'schedule';
+
+function switchMode(mode) {
+  currentMode = mode;
+  document.getElementById('btn-schedule').classList.toggle('active', mode === 'schedule');
+  document.getElementById('btn-heatmap').classList.toggle('active', mode === 'heatmap');
+  document.getElementById('group-select-wrap').style.display = mode === 'schedule' ? '' : 'none';
+  document.getElementById('heatmap-panel').classList.toggle('show', mode === 'heatmap');
+  document.getElementById('meta').style.display = mode === 'heatmap' ? 'none' : '';
+
+  // Hide sidebar when not in heatmap mode
+  if (mode !== 'heatmap') {
+    document.getElementById('preset-sidebar').classList.remove('show');
+  } else if (heatWeekFilter !== 'all') {
+    document.getElementById('preset-sidebar').classList.add('show');
+  }
+
+  if (mode === 'heatmap') {
+    initHeatmapControls();
+    renderHeatmap();
+  } else {
+    if (currentGroup) selectGroup(currentGroup);
+    else document.getElementById('content').innerHTML =
+      '<div class="placeholder">Выберите группу<small>Начните вводить номер группы в поле поиска</small></div>';
+  }
+}
+
+/* ================================================================
+   Heatmap mode — multi-filter chip system
+   ================================================================ */
+let heatmapInited = false;
+let heatFilters = [];   // [{faculty, specialty, degree, year, group, label}, ...]
+let allFaculties = [];  // [{id, name}]
+let allDegrees = [];
+let allYears = [];
+let allSpecialties = {};  // facId -> [spec, ...]
+
+const COMBINED_BAK_SPEC = 'Бакалавриат / Специалитет';
+function degreeMatches(filterDeg, groupDeg) {
+  if (!filterDeg) return true;
+  if (filterDeg === COMBINED_BAK_SPEC)
+    return groupDeg === 'Бакалавриат' || groupDeg === 'Специалитет';
+  return groupDeg === filterDeg;
+}
+
+function initHeatmapControls() {
+  if (heatmapInited) return;
+  heatmapInited = true;
+
+  const facMap = {};
+  const degreeSet = new Set();
+  const yearSet = new Set();
+  const specByFac = {};  // facId -> Set
+  for (const gid of Object.keys(DATA.groups)) {
+    const g = DATA.groups[gid];
+    if (g.faculty_id && g.faculty_name) {
+      if (!facMap[g.faculty_id]) facMap[g.faculty_id] = g.faculty_name;
+      if (!specByFac[g.faculty_id]) specByFac[g.faculty_id] = new Set();
+      if (g.specialty) specByFac[g.faculty_id].add(g.specialty);
+    }
+    if (g.degree) degreeSet.add(g.degree);
+    if (g.year)   yearSet.add(g.year);
+  }
+  allFaculties = Object.entries(facMap).map(([id, name]) => ({ id, name })).sort((a,b) => a.name.localeCompare(b.name));
+  allDegrees = [...degreeSet].sort();
+  // Merge Бакалавриат + Специалитет into one option
+  const hasBak = allDegrees.includes('Бакалавриат'), hasSpec = allDegrees.includes('Специалитет');
+  if (hasBak || hasSpec) {
+    allDegrees = allDegrees.filter(d => d !== 'Бакалавриат' && d !== 'Специалитет');
+    allDegrees.unshift(COMBINED_BAK_SPEC);
+  }
+  allYears = [...yearSet].sort((a,b) => a - b);
+  for (const [fid, ss] of Object.entries(specByFac)) allSpecialties[fid] = [...ss].sort();
+
+  // Populate faculty select
+  const selFac = document.getElementById('hf-faculty');
+  selFac.innerHTML = '<option value="">Факультет…</option>' +
+    allFaculties.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('');
+  selFac.addEventListener('change', updateHfDependents);
+
+  // Degree
+  const selDeg = document.getElementById('hf-degree');
+  selDeg.innerHTML = '<option value="">Ступень…</option>' +
+    allDegrees.map(d => `<option value="${d}">${esc(d)}</option>`).join('');
+  selDeg.addEventListener('change', updateHfDependents);
+
+  // Year
+  const selYear = document.getElementById('hf-year');
+  selYear.innerHTML = '<option value="">Курс…</option>' +
+    allYears.map(y => `<option value="${y}">${y} курс</option>`).join('');
+  selYear.addEventListener('change', updateHfDependents);
+
+  // Specialty & Group start empty until faculty picked
+  document.getElementById('hf-specialty').addEventListener('change', updateHfDependents);
+  updateHfDependents();
+}
+
+function updateHfDependents() {
+  const facId = document.getElementById('hf-faculty').value;
+  const specVal = document.getElementById('hf-specialty').value;
+  const degVal  = document.getElementById('hf-degree').value;
+  const yrVal   = document.getElementById('hf-year').value;
+
+  // Specialty — filter by faculty
+  const selSpec = document.getElementById('hf-specialty');
+  const prevSpec = selSpec.value;
+  if (facId && allSpecialties[facId]) {
+    const specs = allSpecialties[facId];
+    selSpec.innerHTML = '<option value="">Специальность…</option>' +
+      specs.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  } else {
+    const all = new Set();
+    for (const ss of Object.values(allSpecialties)) ss.forEach(s => all.add(s));
+    const sorted = [...all].sort();
+    selSpec.innerHTML = '<option value="">Специальность…</option>' +
+      sorted.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  }
+  // Restore selection if still valid
+  if (prevSpec && selSpec.querySelector(`option[value="${CSS.escape(prevSpec)}"]`)) selSpec.value = prevSpec;
+  else selSpec.value = '';
+  const currentSpec = selSpec.value;
+
+  // Group dropdown — filtered by all selected criteria
+  const selGrp = document.getElementById('hf-group');
+  const filtered = groupIndex.filter(gi => {
+    const g = DATA.groups[gi.id];
+    if (!g) return false;
+    if (facId       && g.faculty_id !== facId) return false;
+    if (currentSpec && g.specialty  !== currentSpec) return false;
+    if (degVal      && !degreeMatches(degVal, g.degree)) return false;
+    if (yrVal       && String(g.year) !== yrVal) return false;
+    return true;
+  });
+  selGrp.innerHTML = '<option value="">Группа…</option>' +
+    filtered.map(gi => `<option value="${gi.id}">${gi.id}</option>`).join('');
+}
+
+function addFilter() {
+  const fac  = document.getElementById('hf-faculty').value;
+  const spec = document.getElementById('hf-specialty').value;
+  const deg  = document.getElementById('hf-degree').value;
+  const yr   = document.getElementById('hf-year').value;
+  const grp  = document.getElementById('hf-group').value;
+
+  if (!fac && !spec && !deg && !yr && !grp) return; // nothing selected
+
+  // Build label
+  const parts = [];
+  if (grp) {
+    parts.push('Группа ' + grp);
+  } else {
+    if (fac) { const f = allFaculties.find(x => x.id === fac); parts.push(f ? f.name : fac); }
+    if (spec) parts.push(spec);
+    if (deg)  parts.push(deg);
+    if (yr)   parts.push(yr + ' курс');
+  }
+
+  heatFilters.push({ faculty: fac, specialty: spec, degree: deg, year: yr, group: grp, label: parts.join(', ') });
+  lastPredictionResults = null;
+  renderChips();
+  renderHeatmap();
+  saveHash();
+}
+
+function removeFilter(idx) {
+  heatFilters.splice(idx, 1);
+  lastPredictionResults = null;
+  renderChips();
+  renderHeatmap();
+  saveHash();
+}
+
+function renderChips() {
+  const area = document.getElementById('chips-area');
+  if (!heatFilters.length) {
+    area.innerHTML = '<span class="chip-hint">Добавьте фильтры — можно комбинировать разные наборы</span>';
+    return;
+  }
+  area.innerHTML = heatFilters.map((f, i) =>
+    `<span class="chip">${esc(f.label)}<button class="chip-x" onclick="removeFilter(${i})">&times;</button></span>`
+  ).join('');
+}
+
+let heatWeekFilter = 'all'; // 'all' | 'odd' | 'even'
+
+function setWeekFilter(val) {
+  heatWeekFilter = val;
+  document.getElementById('wt-all').classList.toggle('active', val === 'all');
+  document.getElementById('wt-odd').classList.toggle('active', val === 'odd');
+  document.getElementById('wt-even').classList.toggle('active', val === 'even');
+  // Show/hide prediction panel + sidebar
+  const predPanel = document.getElementById('prediction-panel');
+  const sidebar = document.getElementById('preset-sidebar');
+  if (val === 'all') {
+    predPanel.classList.remove('show');
+    sidebar.classList.remove('show');
+    lastPredictionResults = null; // clear predictions
+  } else {
+    predPanel.classList.add('show');
+    sidebar.classList.add('show');
+    lastPredictionResults = null; // clear predictions on week change
+  }
+  renderHeatmap();
+  saveHash();
+}
+
+function collectHeatmapGroups() {
+  if (!heatFilters.length) {
+    // No filters → show all
+    return Object.values(DATA.groups);
+  }
+  const idSet = new Set();
+  for (const f of heatFilters) {
+    for (const [gid, g] of Object.entries(DATA.groups)) {
+      if (f.group) { if (gid === f.group) idSet.add(gid); continue; }
+      if (f.faculty   && g.faculty_id !== f.faculty) continue;
+      if (f.specialty && g.specialty  !== f.specialty) continue;
+      if (f.degree    && !degreeMatches(f.degree, g.degree)) continue;
+      if (f.year      && String(g.year) !== f.year) continue;
+      idSet.add(gid);
+    }
+  }
+  return [...idSet].map(id => DATA.groups[id]);
+}
+
+function renderHeatmap() {
+  const container = document.getElementById('content');
+  const groups = collectHeatmapGroups();
+  const totalGroups = groups.length;
+  if (!totalGroups) {
+    container.innerHTML = '<div class="placeholder">Нет групп<small>Добавьте фильтры на панели выше</small></div>';
+    return;
+  }
+
+  const isSplit = heatWeekFilter === 'all';
+
+  // Count per day-slot. In split mode count odd & even separately.
+  const countsOdd = {}, countsEven = {}, countsAll = {};
+  let maxCount = 0;
+  for (const g of groups) {
+    const seenOdd = new Set(), seenEven = new Set();
+    for (const c of g.schedule) {
+      const key = c.day + '-' + c.slot;
+      // A class with week===null runs both weeks
+      const onOdd  = c.week !== 'even';
+      const onEven = c.week !== 'odd';
+      if (onOdd  && !seenOdd.has(key))  { seenOdd.add(key);  countsOdd[key]  = (countsOdd[key]  || 0) + 1; }
+      if (onEven && !seenEven.has(key)) { seenEven.add(key); countsEven[key] = (countsEven[key] || 0) + 1; }
+    }
+  }
+  // For single-week modes, pick the right counts
+  if (!isSplit) {
+    const src = heatWeekFilter === 'odd' ? countsOdd : countsEven;
+    Object.assign(countsAll, src);
+    for (const v of Object.values(countsAll)) if (v > maxCount) maxCount = v;
+  } else {
+    for (const v of Object.values(countsOdd))  if (v > maxCount) maxCount = v;
+    for (const v of Object.values(countsEven)) if (v > maxCount) maxCount = v;
+  }
+
+  const days = [1,2,3,4,5,6];
+  const slots = [1,2,3,4,5,6,7];
+
+  let html = '<div class="table-wrap"><table class="schedule">';
+  html += '<colgroup><col class="col-time">';
+  for (const d of days) html += '<col class="col-day">';
+  html += '</colgroup>';
+  html += '<thead><tr><th>Время</th>';
+  for (const d of days) html += `<th>${DAY_NAMES[d]}</th>`;
+  html += '</tr></thead><tbody>';
+
+  for (const s of slots) {
+    const bell = DATA.bell_schedule[String(s)];
+    html += '<tr>';
+    html += `<td class="time-cell"><div class="slot-num">${s}</div>${bell.half1}<br>${bell.half2}</td>`;
+    for (const d of days) {
+      const key = d + '-' + s;
+      if (isSplit) {
+        const nOdd  = countsOdd[key]  || 0;
+        const nEven = countsEven[key] || 0;
+        if (!nOdd && !nEven) {
+          html += '<td class="heatmap-cell heat-0">—</td>';
+        } else {
+          html += '<td class="heatmap-cell"><div class="heat-split">';
+          html += heatHalf(nOdd,  maxCount, totalGroups, 'нч');
+          html += heatHalf(nEven, maxCount, totalGroups, 'чт');
+          html += '</div></td>';
+        }
+      } else {
+        const n = countsAll[key] || 0;
+        const pct = maxCount ? n / maxCount : 0;
+        const bg = n === 0 ? '' : `background:${heatColor(pct)};`;
+        const txtColor = n === 0 ? '' : pct > 0.55 ? 'color:#fff;' : 'color:#2c3e50;';
+        const cls = n === 0 ? ' heat-0' : '';
+        const pctOfTotal = totalGroups ? Math.round(n / totalGroups * 100) : 0;
+        const title = `${n} из ${totalGroups} групп (${pctOfTotal}%)`;
+        html += `<td class="heatmap-cell${cls}" title="${title}"><span class="heat-single" style="${bg}${txtColor}">${n || '—'}</span></td>`;
+      }
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table></div>';
+
+  const grad = 'linear-gradient(to right, #e0ecf4, #7ba7cc, #2b6a99)';
+  html += `<div class="heatmap-legend">
+    <span>0</span>
+    <span class="grad-bar" style="background:${grad}"></span>
+    <span>${maxCount}</span>
+    <span style="margin-left:12px; color:#999">групп занято (из ${totalGroups})</span>
+  </div>`;
+
+  container.innerHTML = html;
+
+  // Re-apply prediction highlights if available
+  if (lastPredictionResults && heatWeekFilter !== 'all') {
+    highlightPredictedSlots(lastPredictionResults);
+    renderPredictionResults(lastPredictionResults);
+  }
+}
+
+function heatHalf(n, maxCount, totalGroups, label) {
+  const pct = maxCount ? n / maxCount : 0;
+  const bg  = n === 0 ? '#f8f9fa' : heatColor(pct);
+  const txt = n === 0 ? 'color:#ccc;' : pct > 0.55 ? 'color:#fff;' : 'color:#2c3e50;';
+  const pctOfTotal = totalGroups ? Math.round(n / totalGroups * 100) : 0;
+  const title = `${label}: ${n} из ${totalGroups} групп (${pctOfTotal}%)`;
+  return `<div class="heat-half" style="background:${bg};${txt}" title="${title}"><span class="wk-label">${label}</span>${n || '—'}</div>`;
+}
+
+function heatColor(pct) {
+  // Cool blue-teal scale: soft at low end, rich at high end
+  const h = 205 - pct * 10;       // 205 → 195 (blue range)
+  const s = 35 + pct * 40;        // 35% → 75%
+  const l = 88 - pct * 50;        // 88% → 38%
+  return `hsl(${h}, ${s}%, ${l}%)`;
+}
+
+// Set initial active button
+document.getElementById('btn-schedule').classList.add('active');
+
+/* ================================================================
+   Presets — save/load prediction configs to localStorage
+   ================================================================ */
+const PRESET_KEY = 'timetable_presets';
+
+function getPresets() {
+  try { return JSON.parse(localStorage.getItem(PRESET_KEY)) || {}; } catch { return {}; }
+}
+
+function setPresets(presets) {
+  localStorage.setItem(PRESET_KEY, JSON.stringify(presets));
+}
+
+function refreshPresetCards() {
+  const container = document.getElementById('preset-cards');
+  if (!container) return;
+  const presets = getPresets();
+  const names = Object.keys(presets).sort();
+  if (!names.length) {
+    container.innerHTML = '<div class="preset-empty">Нет сохранённых пресетов.<br>Настройте фильтры и нажмите «Сохранить»</div>';
+    return;
+  }
+  const DAY_SHORT = {1:'Пн',2:'Вт',3:'Ср',4:'Чт',5:'Пт',6:'Сб'};
+  let html = '';
+  for (const name of names) {
+    const cfg = presets[name];
+    const weekLabel = cfg.week === 'odd' ? 'Нч' : cfg.week === 'even' ? 'Чт' : 'Все';
+    const locLabel = cfg.loc === '1' ? 'НК/КПА' : 'ГК/ЛК';
+    const daysLabel = (cfg.days || []).map(d => DAY_SHORT[d] || d).join(', ');
+    const slotsLabel = (cfg.m || '3') + '–' + (cfg.e || '6') + ' пары';
+    const filtersCount = (cfg.filters || []).length;
+    const safeName = esc(name).replace(/'/g, "\\'");
+    html += '<div class="preset-card">';
+    html += '<div class="preset-card-name">' + esc(name) + '</div>';
+    html += '<div class="preset-card-meta">';
+    html += '<span>📅 ' + weekLabel + '</span>';
+    html += '<span>📍 ' + locLabel + '</span>';
+    html += '<span>🕐 ' + slotsLabel + '</span>';
+    if (daysLabel) html += '<br><span>🗓 ' + daysLabel + '</span>';
+    if (filtersCount) html += '<span>🔍 ' + filtersCount + ' фильтр.</span>';
+    html += '</div>';
+    html += '<div class="preset-card-actions">';
+    html += '<button class="pc-load-btn" onclick="loadPreset(\'' + safeName + '\')">📂 Загрузить</button>';
+    html += '<button class="pc-del-btn" onclick="deletePreset(\'' + safeName + '\')">🗑</button>';
+    html += '</div>';
+    html += '</div>';
+  }
+  container.innerHTML = html;
+}
+// Back-compat alias
+function refreshPresetSelect() { refreshPresetCards(); }
+
+function gatherPredConfig() {
+  return {
+    loc: document.getElementById('pred-location').value,
+    m: document.getElementById('pred-morning').value,
+    e: document.getElementById('pred-evening').value,
+    days: [...document.querySelectorAll('.pred-day')].filter(cb => cb.checked).map(cb => cb.value),
+    filters: heatFilters.map(f => ({
+      faculty: f.faculty, specialty: f.specialty, degree: f.degree,
+      year: f.year, group: f.group, label: f.label
+    })),
+    week: heatWeekFilter
+  };
+}
+
+function applyPredConfig(cfg) {
+  // Restore filters
+  heatFilters = [];
+  if (cfg.filters && cfg.filters.length) {
+    for (const f of cfg.filters) {
+      heatFilters.push({
+        faculty: f.faculty || '', specialty: f.specialty || '',
+        degree: f.degree || '', year: f.year || '',
+        group: f.group || '', label: f.label || ''
+      });
+    }
+  }
+  renderChips();
+
+  // Restore week
+  if (cfg.week && cfg.week !== 'all') {
+    setWeekFilter(cfg.week);
+  }
+
+  // Restore prediction controls
+  document.getElementById('pred-location').value = cfg.loc || '1';
+  document.getElementById('pred-morning').value = cfg.m || '3';
+  document.getElementById('pred-evening').value = cfg.e || '6';
+  const savedDays = cfg.days || ['1','2','3','4','5'];
+  document.querySelectorAll('.pred-day').forEach(cb => {
+    cb.checked = savedDays.includes(cb.value);
+  });
+}
+
+function savePreset() {
+  const name = prompt('Название пресета:');
+  if (!name || !name.trim()) return;
+  const presets = getPresets();
+  presets[name.trim()] = gatherPredConfig();
+  setPresets(presets);
+  refreshPresetCards();
+}
+
+function loadPreset(name) {
+  if (!name) return;
+  const presets = getPresets();
+  const cfg = presets[name];
+  if (!cfg) return;
+
+  // Switch to heatmap mode if needed
+  if (currentMode !== 'heatmap') switchMode('heatmap');
+
+  applyPredConfig(cfg);
+}
+
+function deletePreset(name) {
+  if (!name) return;
+  if (!confirm('Удалить пресет «' + name + '»?')) return;
+  const presets = getPresets();
+  delete presets[name];
+  setPresets(presets);
+  refreshPresetCards();
+}
+
+/* ================================================================
+   Share — encode/decode results as compact strings
+   ================================================================ */
+function encodeResults() {
+  if (!lastPredictionResults || !lastPredictionResults.length) return null;
+
+  const payload = {
+    v: 1,  // version
+    w: heatWeekFilter,
+    cfg: {
+      loc: document.getElementById('pred-location').value,
+      m: document.getElementById('pred-morning').value,
+      e: document.getElementById('pred-evening').value,
+      days: [...document.querySelectorAll('.pred-day')].filter(cb => cb.checked).map(cb => cb.value)
+    },
+    r: lastPredictionResults.map(r => ({
+      d: r.day,
+      s: r.slot,
+      t: Math.round(r.totalScore * 10) / 10,
+      ml: r.moreLikely.length,
+      ll: r.lessLikely.length,
+      hc: r.haveClass.length
+    }))
+  };
+
+  // JSON → UTF-8 → deflate → base64url
+  const json = JSON.stringify(payload);
+  const bytes = new TextEncoder().encode(json);
+  // Simple base64url without padding (no compression — kept tiny)
+  let b64 = btoa(String.fromCharCode(...bytes));
+  // Make URL-safe: + → -, / → _, strip =
+  b64 = b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return b64;
+}
+
+function decodeResults(code) {
+  try {
+    // Restore base64 padding
+    let b64 = code.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    const bin = atob(b64);
+    const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+    const json = new TextDecoder().decode(bytes);
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+function exportShareCode() {
+  const code = encodeResults();
+  if (!code) { alert('Сначала рассчитайте результаты'); return; }
+
+  // Copy to clipboard
+  navigator.clipboard.writeText(code).then(() => {
+    const span = document.getElementById('share-code-display');
+    span.innerHTML = '<span class="share-copied">✓ Скопировано!</span> <span class="share-code">' + esc(code) + '</span>';
+    setTimeout(() => {
+      const copied = span.querySelector('.share-copied');
+      if (copied) copied.textContent = '';
+    }, 3000);
+  }).catch(() => {
+    // Fallback: show code for manual copy
+    const span = document.getElementById('share-code-display');
+    span.innerHTML = '<span class="share-code">' + esc(code) + '</span>';
+  });
+}
+
+function importShareCode() {
+  const input = document.getElementById('share-import-input');
+  const code = (input.value || '').trim();
+  if (!code) { alert('Вставьте код для импорта'); return; }
+
+  const payload = decodeResults(code);
+  if (!payload || !payload.r || !payload.r.length) {
+    alert('Неверный код — не удалось расшифровать');
+    return;
+  }
+
+  // Switch to heatmap if needed
+  if (currentMode !== 'heatmap') switchMode('heatmap');
+
+  // Restore week
+  if (payload.w && payload.w !== 'all') setWeekFilter(payload.w);
+
+  // Restore prediction controls
+  if (payload.cfg) {
+    document.getElementById('pred-location').value = payload.cfg.loc || '1';
+    document.getElementById('pred-morning').value = payload.cfg.m || '3';
+    document.getElementById('pred-evening').value = payload.cfg.e || '6';
+    const savedDays = payload.cfg.days || [];
+    document.querySelectorAll('.pred-day').forEach(cb => {
+      cb.checked = savedDays.includes(cb.value);
+    });
+  }
+
+  // Build synthetic result objects for display
+  const DAY_SHORT = ['','Пн','Вт','Ср','Чт','Пт','Сб'];
+  lastPredictionResults = payload.r.map(r => ({
+    day: r.d, slot: r.s, totalScore: r.t,
+    moreLikely: Array(r.ml).fill('?'),
+    lessLikely: Array(r.ll).fill('?'),
+    haveClass: Array(r.hc).fill('?'),
+    groupDetails: {},
+    _imported: true
+  }));
+
+  renderHeatmap();
+  input.value = '';
+  document.getElementById('share-code-display').innerHTML =
+    '<span class="share-copied">✓ Импортировано!</span>';
+  setTimeout(() => {
+    const el = document.getElementById('share-code-display');
+    if (el) el.innerHTML = '';
+  }, 3000);
+}
+
+// Init preset dropdown on page load
+refreshPresetSelect();
+
+/* ================================================================
+   Hash-based state persistence
+   ================================================================ */
+function saveHash() {
+  const state = {};
+  state.mode = currentMode;
+  if (currentMode === 'schedule' && currentGroup) {
+    state.group = currentGroup;
+  }
+  if (currentMode === 'heatmap') {
+    if (heatFilters.length) {
+      state.filters = heatFilters.map(f => {
+        const o = {};
+        if (f.faculty)   o.f = f.faculty;
+        if (f.specialty) o.s = f.specialty;
+        if (f.degree)    o.d = f.degree;
+        if (f.year)      o.y = f.year;
+        if (f.group)     o.g = f.group;
+        return o;
+      });
+    }
+    if (heatWeekFilter !== 'all') state.week = heatWeekFilter;
+    // Save prediction settings
+    if (lastPredictionResults && heatWeekFilter !== 'all') {
+      state.pred = {
+        loc: document.getElementById('pred-location').value,
+        m: document.getElementById('pred-morning').value,
+        e: document.getElementById('pred-evening').value,
+        days: [...document.querySelectorAll('.pred-day')].filter(cb => cb.checked).map(cb => cb.value)
+      };
+    }
+  }
+  location.hash = encodeURIComponent(JSON.stringify(state));
+}
+
+function restoreFromHash() {
+  const raw = decodeURIComponent(location.hash.slice(1));
+  if (!raw) return;
+
+  // Legacy: plain group id (no JSON)
+  if (!raw.startsWith('{')) {
+    if (DATA.groups[raw]) selectGroup(raw);
+    return;
+  }
+
+  let state;
+  try { state = JSON.parse(raw); } catch { return; }
+
+  if (state.mode === 'heatmap') {
+    switchMode('heatmap');
+    // Restore filters
+    if (state.filters && state.filters.length) {
+      for (const o of state.filters) {
+        const fac = o.f || '', spec = o.s || '', deg = o.d || '', yr = o.y || '', grp = o.g || '';
+        const parts = [];
+        if (grp) {
+          parts.push('Группа ' + grp);
+        } else {
+          if (fac) { const f = allFaculties.find(x => x.id === fac); parts.push(f ? f.name : fac); }
+          if (spec) parts.push(spec);
+          if (deg)  parts.push(deg);
+          if (yr)   parts.push(yr + ' курс');
+        }
+        heatFilters.push({ faculty: fac, specialty: spec, degree: deg, year: yr, group: grp, label: parts.join(', ') });
+      }
+      renderChips();
+    }
+    if (state.week) setWeekFilter(state.week);
+    // Restore prediction settings
+    if (state.pred && state.week) {
+      document.getElementById('pred-location').value = state.pred.loc || '1';
+      document.getElementById('pred-morning').value = state.pred.m || '1';
+      document.getElementById('pred-evening').value = state.pred.e || '7';
+      // Restore day checkboxes
+      const savedDays = state.pred.days || [];
+      document.querySelectorAll('.pred-day').forEach(cb => {
+        cb.checked = savedDays.includes(cb.value);
+      });
+      runPrediction();
+    } else if (!state.week) {
+      renderHeatmap();
+    }
+  } else {
+    if (state.group && DATA.groups[state.group]) selectGroup(state.group);
+  }
+}
+</script>
+</body>
+</html>

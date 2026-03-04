@@ -192,38 +192,6 @@ def _status() -> dict:
 
 class Handler(http.server.SimpleHTTPRequestHandler):
 
-    # Disable directory listings entirely
-    def list_directory(self, path):
-        self.send_error(403)
-        return None
-
-    # ---- security gate (runs before every request) ----
-    def _guard(self) -> bool:
-        """Return True if the request is allowed. Sends error & returns False otherwise."""
-        # 1. Block bad user-agents
-        ua = self.headers.get("User-Agent", "")
-        if _BLOCKED_UA_RE.search(ua):
-            self.send_error(403, "Forbidden")
-            return False
-
-        # 2. Block suspicious URL patterns
-        if _BLOCKED_PATH_RE.search(self.path):
-            self.send_error(403, "Forbidden")
-            return False
-
-        # 4. Reject oversized headers (Content-Length for POST)
-        cl = self.headers.get("Content-Length")
-        if cl:
-            try:
-                if int(cl) > 4096:
-                    self.send_error(413, "Payload Too Large")
-                    return False
-            except ValueError:
-                self.send_error(400, "Bad Request")
-                return False
-
-        return True
-
     def _add_security_headers(self):
         """Append hardening headers to every response."""
         self.send_header("X-Content-Type-Options", "nosniff")
@@ -245,16 +213,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self):
-        if not self._guard():
-            return
         if self.path == "/api/update":
             self._json_response(_start_update())
         else:
             self.send_error(404)
 
     def do_GET(self):
-        if not self._guard():
-            return
         if self.path == "/api/update/status":
             self._json_response(_status())
             return
@@ -266,19 +230,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             return
 
-        # Whitelist static files
-        clean = self.path.split("?")[0].split("#")[0]
-        if clean not in _ALLOWED_FILES:
-            self.send_error(403, "Forbidden")
-            return
-
         super().do_GET()
-
-    # Block all other HTTP methods
-    def do_PUT(self):     self.send_error(405, "Method Not Allowed")
-    def do_DELETE(self):  self.send_error(405, "Method Not Allowed")
-    def do_PATCH(self):   self.send_error(405, "Method Not Allowed")
-    def do_OPTIONS(self): self.send_error(405, "Method Not Allowed")
 
     def end_headers(self):
         self._add_security_headers()

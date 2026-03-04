@@ -706,6 +706,12 @@
     padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px;
     font-size: 12px; font-family: 'Consolas', monospace; width: 260px;
   }
+  .share-import-btn {
+    padding: 6px 14px; background: #fff; border: 1px solid #ccc; border-radius: 4px;
+    font-size: 12px; font-weight: 600; color: #27ae60; cursor: pointer;
+    transition: background .12s, border-color .12s;
+  }
+  .share-import-btn:hover { background: #f0fef4; border-color: #27ae60; }
 
   /* ---------- prediction results ---------- */
   .prediction-results {
@@ -893,6 +899,28 @@
   .sb-tag.sb-red    { background: #e74c3c; }
   .gm-empty { color: #aaa; text-align: center; padding: 20px; font-size: 13px; }
 
+  /* mini day-timetable inside group detail */
+  .mini-day-schedule { margin-top: 10px; }
+  .mini-day-schedule h5 { font-size: 12px; color: #1e3a6e; margin: 0 0 6px; font-weight: 700; }
+  .mini-day-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .mini-day-table th { background: #2d5ca6; color: #fff; padding: 4px 6px; font-weight: 600; text-align: left; }
+  .mini-day-table td { padding: 4px 6px; border-bottom: 1px solid #eee; vertical-align: top; }
+  .mini-day-table tr:last-child td { border-bottom: none; }
+  .mini-day-table tr.mini-empty td { color: #ccc; font-style: italic; }
+  .mini-day-table tr.mini-event-slot { background: #e8f0fe; }
+  .mini-day-table tr.mini-event-slot td { font-weight: 600; }
+  .mini-day-table .mini-event-badge { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 600; color: #fff; background: #2d5ca6; margin-left: 4px; }
+  .mini-day-table .mini-card { padding: 2px 0; }
+  .mini-day-table .mini-card + .mini-card { border-top: 1px dashed #ddd; margin-top: 2px; padding-top: 2px; }
+  .mini-day-table .mini-wk { display: inline-block; padding: 0 4px; border-radius: 4px; font-size: 9px; font-weight: 600; color: #fff; margin-right: 3px; }
+  .mini-day-table .mini-wk-odd { background: #e67e22; }
+  .mini-day-table .mini-wk-even { background: #27ae60; }
+  .mini-day-table .mini-type { display: inline-block; padding: 0 4px; border-radius: 4px; font-size: 9px; font-weight: 600; color: #fff; margin-left: 3px; }
+  .mini-day-table .mini-teacher { color: #777; font-size: 10px; }
+  .mini-day-table .mini-room { color: #999; font-size: 10px; }
+  .mini-day-table .mini-slot-num { font-weight: 700; color: #2d5ca6; white-space: nowrap; width: 60px; }
+  .mini-day-table tr.mini-conflict td { background: #fdedec; }
+
   /* ---------- heatmap slot highlights ---------- */
   td.heatmap-cell.slot-rank-1 { outline: 3px solid #f1c40f; outline-offset: -2px; position: relative; }
   td.heatmap-cell.slot-rank-2 { outline: 3px solid #bdc3c7; outline-offset: -2px; position: relative; }
@@ -1003,7 +1031,7 @@
       <span id="share-code-display"></span>
       <span class="share-import">
         <input id="share-import-input" placeholder="Вставьте код..." title="Вставьте код для импорта результатов">
-        <button onclick="importShareCode()">📥 Импорт</button>
+        <button class="share-import-btn" onclick="importShareCode()">📥 Импорт</button>
       </span>
     </div>
   </div>
@@ -1031,7 +1059,7 @@
 </div><!-- /.app-body -->
 
 <div class="footer">
-  Version 1.0.3
+  Version 1.1. Made with ❤️ by Claude Opus, Claude Sonnet, Gemini 3.1 and others under control of Max Budko. Data source: <a href="https://table.nsu.ru/" target="_blank" rel="noopener">table.nsu.ru</a>. <br>
 </div>
 
 <!-- Groups modal overlay -->
@@ -1196,7 +1224,7 @@ const DIRECTION_MOD_LATE    = 0.8;
 const DIRECTION_MOD_BETWEEN = 1.0;
 const ELECTIVE_PROXIMITY_DISCOUNT = 0.7;
 const SOFT_CONFLICT_PENALTY       = 1.0;
-const LATE_HOUR_FACTOR = { 1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0, 5: 0.95, 6: 0.85, 7: 0.7 };
+const LATE_HOUR_FACTOR = { 1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0, 5: 0.9, 6: 0.55, 7: 0.25 };
 const TIREDNESS_TABLE  = { 1: 1.0, 2: 0.95, 3: 0.9, 4: 0.85 }; // >=5 → 0.8
 
 function generateCandidates(allowedDays, morningCutoff, eveningCutoff) {
@@ -1700,6 +1728,9 @@ function showGroupDetail(gid, rankIdx, event) {
   html += [g.faculty_name, g.specialty, g.degree, g.year ? g.year + ' курс' : ''].filter(Boolean).join(' • ');
   html += `</div>`;
 
+  // --- Mini day-timetable BEFORE the score breakdown ---
+  html += renderMiniDaySchedule(gid, rankIdx);
+
   if (!info) {
     html += `<div style="color:#aaa;font-size:12px;">Нет данных о расчёте</div>`;
   } else {
@@ -1773,6 +1804,61 @@ function showGroupDetail(gid, rankIdx, event) {
   container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
+function renderMiniDaySchedule(gid, rankIdx) {
+  const r = lastPredictionResults && lastPredictionResults[rankIdx];
+  if (!r) return '';
+  const g = DATA.groups[gid];
+  if (!g) return '';
+
+  const day = r.day;
+  const eventSlot = r.slot;
+  const weekParity = heatWeekFilter; // 'odd' | 'even' | 'all'
+  const dayName = DAY_NAMES[day];
+
+  // Use shared helper to build slot map for one day
+  const slotMap = buildSlotMap(g.schedule, { day, weekParity });
+
+  const slots = [1, 2, 3, 4, 5, 6, 7];
+  const eventLocSel = document.getElementById('pred-location');
+  const eventLocName = eventLocSel ? eventLocSel.options[eventLocSel.selectedIndex].text : 'Мероприятие';
+
+  let html = `<div class="mini-day-schedule">`;
+  html += `<h5>${esc(dayName)} — расписание группы ${esc(gid)}</h5>`;
+  html += `<table class="mini-day-table"><thead><tr><th>Пара</th><th>Время</th><th>Занятие</th></tr></thead><tbody>`;
+
+  for (const s of slots) {
+    const bell = DATA.bell_schedule[String(s)];
+    const entries = slotMap[s] || [];
+    const isEventSlot = s === eventSlot;
+    const hasConflict = isEventSlot && entries.some(c => c.type !== 'elective');
+
+    let rowCls = '';
+    if (hasConflict) rowCls = 'mini-conflict';
+    else if (isEventSlot) rowCls = 'mini-event-slot';
+    else if (!entries.length) rowCls = 'mini-empty';
+
+    html += `<tr class="${rowCls}">`;
+    html += `<td class="mini-slot-num">${s}</td>`;
+    html += `<td style="white-space:nowrap">${bell.half1}<br>${bell.half2}</td>`;
+    html += `<td>`;
+
+    // Render existing classes using shared helper
+    for (const c of entries) html += renderClassEntry(c, true);
+
+    // Show event marker in the event slot
+    if (isEventSlot) {
+      html += `<div class="mini-card"><span class="mini-event-badge">★ ${esc(eventLocName)}</span></div>`;
+    } else if (!entries.length) {
+      html += `—`;
+    }
+
+    html += `</td></tr>`;
+  }
+
+  html += `</tbody></table></div>`;
+  return html;
+}
+
 function closeGroupsModal() {
   document.getElementById('groups-modal-overlay').classList.remove('open');
 }
@@ -1823,27 +1909,78 @@ function selectGroup(gid) {
   renderSchedule(g);
 }
 
+/* ---------- Shared rendering helpers ---------- */
+
+/**
+ * Build a slot lookup map from a schedule array.
+ * @param {Array} schedule - Array of class entries with .day and .slot
+ * @param {Object} [opts]
+ * @param {number}  [opts.day]        - Filter to a single day
+ * @param {string}  [opts.weekParity] - 'odd'|'even'|'all' — filter by week parity
+ * @returns {Object} key "day-slot" → [entries]  (or "slot" → [entries] when day is set)
+ */
+function buildSlotMap(schedule, opts) {
+  const map = {};
+  const filterDay = opts && opts.day;
+  const wp = opts && opts.weekParity;
+  for (const c of schedule) {
+    if (filterDay != null && c.day !== filterDay) continue;
+    if (wp === 'odd'  && c.week === 'even') continue;
+    if (wp === 'even' && c.week === 'odd')  continue;
+    const key = filterDay != null ? String(c.slot) : (c.day + '-' + c.slot);
+    (map[key] = map[key] || []).push(c);
+  }
+  return map;
+}
+
+/**
+ * Render a single class entry as HTML.
+ * @param {Object}  c    - Class entry (subject, type, teacher_id, room_id, week, …)
+ * @param {boolean} mini - true → compact card for mini day-schedule
+ * @returns {string} HTML string
+ */
+function renderClassEntry(c, mini) {
+  const teacherName = c.teacher_id ? DATA.teachers[c.teacher_id] || '' : '';
+  const roomName    = c.room_id   ? DATA.rooms[c.room_id]       || '' : '';
+
+  if (mini) {
+    let wkTag = '';
+    if (c.week === 'odd')  wkTag = '<span class="mini-wk mini-wk-odd">нч</span>';
+    if (c.week === 'even') wkTag = '<span class="mini-wk mini-wk-even">чт</span>';
+    let h = `<div class="mini-card">`;
+    h += `${wkTag}${esc(c.subject)} <span class="mini-type type-${c.type}">${esc(TYPE_LABELS[c.type] || '')}</span>`;
+    if (teacherName) h += `<br><span class="mini-teacher">${esc(teacherName)}</span>`;
+    if (roomName)    h += ` <span class="mini-room">• ${esc(roomName)}</span>`;
+    h += `</div>`;
+    return h;
+  }
+
+  // Full-size card
+  const subjectTitle = c.subject_full || c.subject;
+  let weekTag = '';
+  if (c.week === 'odd')  weekTag = '<span class="week-tag odd">нч</span> ';
+  if (c.week === 'even') weekTag = '<span class="week-tag even">чт</span> ';
+  const typeBadge = `<span class="type-badge type-${c.type}" title="${esc(TYPE_FULL[c.type] || '')}">${esc(TYPE_LABELS[c.type] || '')}</span>`;
+  const weekClass = c.week === 'odd' ? ' week-odd' : c.week === 'even' ? ' week-even' : '';
+  return `<div class="class-card t-${c.type}${weekClass}" title="${esc(subjectTitle)}">
+    ${weekTag}<span class="subject">${esc(c.subject)}</span>${typeBadge}
+    ${teacherName ? `<div class="teacher">${esc(teacherName)}</div>` : ''}
+    ${roomName    ? `<div class="room">${esc(roomName)}</div>`       : ''}
+  </div>`;
+}
+
 function renderSchedule(group) {
   const container = document.getElementById('content');
 
-  // Always show all days and all time slots
   const days = [1,2,3,4,5,6];
   const slots = [1,2,3,4,5,6,7];
+  const lookup = buildSlotMap(group.schedule);
 
-  // Build lookup: key = "day-slot" -> [entries]
-  const lookup = {};
-  for (const c of group.schedule) {
-    const key = c.day + '-' + c.slot;
-    (lookup[key] = lookup[key] || []).push(c);
-  }
-
-  // Build table
   let html = '<div class="table-wrap"><table class="schedule">';
   html += '<colgroup><col class="col-time">';
   for (const d of days) html += '<col class="col-day">';
   html += '</colgroup>';
 
-  // Header
   html += '<thead><tr><th>Время</th>';
   for (const d of days) html += `<th>${DAY_NAMES[d]}</th>`;
   html += '</tr></thead><tbody>';
@@ -1856,9 +1993,7 @@ function renderSchedule(group) {
       const entries = lookup[d + '-' + s];
       if (!entries) { html += '<td class="day-cell empty"></td>'; continue; }
       html += '<td class="day-cell">';
-      for (const c of entries) {
-        html += renderCard(c);
-      }
+      for (const c of entries) html += renderClassEntry(c, false);
       html += '</td>';
     }
     html += '</tr>';
@@ -1866,7 +2001,6 @@ function renderSchedule(group) {
 
   html += '</tbody></table></div>';
 
-  // Legend
   html += `<div class="legend">
     <span><span class="swatch type-lecture"></span>Лекция</span>
     <span><span class="swatch type-seminar"></span>Семинар</span>
@@ -1879,24 +2013,8 @@ function renderSchedule(group) {
   container.innerHTML = html;
 }
 
-function renderCard(c) {
-  const teacherName = c.teacher_id ? DATA.teachers[c.teacher_id] || '' : '';
-  const roomName    = c.room_id   ? DATA.rooms[c.room_id]       || '' : '';
-  const subjectTitle = c.subject_full || c.subject;
-
-  let weekTag = '';
-  if (c.week === 'odd')  weekTag = '<span class="week-tag odd">нч</span> ';
-  if (c.week === 'even') weekTag = '<span class="week-tag even">чт</span> ';
-
-  const typeBadge = `<span class="type-badge type-${c.type}" title="${esc(TYPE_FULL[c.type] || '')}">${esc(TYPE_LABELS[c.type] || '')}</span>`;
-
-  const weekClass = c.week === 'odd' ? ' week-odd' : c.week === 'even' ? ' week-even' : '';
-  return `<div class="class-card t-${c.type}${weekClass}" title="${esc(subjectTitle)}">
-    ${weekTag}<span class="subject">${esc(c.subject)}</span>${typeBadge}
-    ${teacherName ? `<div class="teacher">${esc(teacherName)}</div>` : ''}
-    ${roomName    ? `<div class="room">${esc(roomName)}</div>`       : ''}
-  </div>`;
-}
+/** @deprecated Use renderClassEntry(c, false) instead */
+function renderCard(c) { return renderClassEntry(c, false); }
 
 /* ================================================================
    Mode switching

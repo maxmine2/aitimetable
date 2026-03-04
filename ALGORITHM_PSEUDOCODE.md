@@ -31,7 +31,7 @@ CAMPUS_FACTOR = {
 
 LATE_HOUR_FACTOR = {
     1: 1.0,  2: 1.0,  3: 1.0,  4: 1.0,
-    5: 0.95, 6: 0.85, 7: 0.7
+    5: 0.9, 6: 0.55, 7: 0.25
 }
 // Reduced transport availability in late evening
 

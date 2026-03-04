@@ -101,9 +101,9 @@ Reduced transport availability in the evening lowers attendance probability for 
 | Slot | Time | Factor |
 |------|------|--------|
 | 1–4 | 9:00–16:05 | ×1.0 |
-| 5 | 16:20 | ×0.95 |
-| 6 | 18:10 | ×0.85 |
-| 7 | 20:00 | ×0.7 |
+| 5 | 16:20 | ×0.9 |
+| 6 | 18:10 | ×0.55 |
+| 7 | 20:00 | ×0.25 |
 
 ### 8. Final score
 

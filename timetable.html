@@ -271,6 +271,36 @@
   .mode-btn:active { transform: scale(.95); }
   .mode-btn.active { background: rgba(255,255,255,.35); font-weight: 600; }
 
+  /* ---------- update button ---------- */
+  .update-btn {
+    margin-left: auto;
+    background: rgba(255,255,255,.12);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,.35);
+    border-radius: 4px;
+    padding: 7px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s, transform .1s, opacity .2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .update-btn:hover { background: rgba(255,255,255,.22); }
+  .update-btn:active { transform: scale(.95); }
+  .update-btn:disabled { opacity: .55; cursor: not-allowed; }
+  .update-btn .update-spinner {
+    display: none;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  .update-btn.updating .update-spinner { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
   /* ---------- heatmap filter panel ---------- */
   .heatmap-panel {
     display: none;
@@ -896,6 +926,10 @@
   </div>
   <button class="mode-btn" id="btn-schedule" onclick="switchMode('schedule')" title="Расписание группы">Расписание</button>
   <button class="mode-btn" id="btn-heatmap" onclick="switchMode('heatmap')" title="Загруженность">Загруженность</button>
+  <button class="update-btn" id="btn-update" onclick="requestUpdate()" title="Обновить расписание с table.nsu.ru">
+    <span class="update-spinner"></span>
+    <span class="update-label">🔄 Обновить</span>
+  </button>
 </div>
 
 <div id="heatmap-panel" class="heatmap-panel">
@@ -2438,6 +2472,97 @@ function importShareCode() {
 
 // Init preset dropdown on page load
 refreshPresetSelect();
+
+/* ================================================================
+   Update timetable data via server
+   ================================================================ */
+let _updatePollTimer = null;
+
+function _resetUpdateBtn() {
+  const btn = document.getElementById('btn-update');
+  btn.querySelector('.update-label').textContent = '🔄 Обновить';
+  btn.classList.remove('updating');
+  btn.disabled = false;
+}
+
+function _setUpdateLabel(text) {
+  document.getElementById('btn-update').querySelector('.update-label').textContent = text;
+}
+
+function _pollUpdateStatus() {
+  fetch('/api/update/status')
+    .then(r => r.json())
+    .then(res => {
+      if (res.status === 'busy') {
+        // Show progress
+        if (res.total > 0) {
+          _setUpdateLabel(res.current + '/' + res.total);
+        } else if (res.phase) {
+          _setUpdateLabel(res.phase);
+        }
+        _updatePollTimer = setTimeout(_pollUpdateStatus, 2000);
+      } else if (res.status === 'ok') {
+        _setUpdateLabel('✓ Готово');
+        const btn = document.getElementById('btn-update');
+        btn.classList.remove('updating');
+        // Reload data
+        fetch('nsu_data.json')
+          .then(r => r.json())
+          .then(d => {
+            DATA = d;
+            buildGroupIndex();
+            if (currentMode === 'heatmap') {
+              renderHeatmap();
+            } else if (currentGroup) {
+              selectGroup(currentGroup);
+            }
+          });
+        setTimeout(_resetUpdateBtn, 3000);
+      } else if (res.status === 'error') {
+        alert('Ошибка обновления: ' + (res.message || 'Неизвестная ошибка'));
+        _resetUpdateBtn();
+      } else {
+        // idle / cooldown — update finished between polls
+        _resetUpdateBtn();
+      }
+    })
+    .catch(() => {
+      _updatePollTimer = setTimeout(_pollUpdateStatus, 3000);
+    });
+}
+
+function requestUpdate() {
+  const btn = document.getElementById('btn-update');
+  if (btn.disabled) return;
+
+  if (!confirm('Обновить расписание с table.nsu.ru?\nЭто может занять несколько минут.')) return;
+
+  btn.disabled = true;
+  btn.classList.add('updating');
+  _setUpdateLabel('Запуск…');
+
+  fetch('/api/update', { method: 'POST' })
+    .then(r => r.json())
+    .then(res => {
+      if (res.status === 'started') {
+        // Start polling for progress
+        _updatePollTimer = setTimeout(_pollUpdateStatus, 1500);
+      } else if (res.status === 'busy') {
+        // Already running — attach to it
+        _updatePollTimer = setTimeout(_pollUpdateStatus, 1000);
+      } else if (res.status === 'cooldown') {
+        alert(res.message);
+        _resetUpdateBtn();
+      } else {
+        alert('Ошибка: ' + (res.message || 'Неизвестная ошибка'));
+        _resetUpdateBtn();
+      }
+    })
+    .catch(err => {
+      alert('Сетевая ошибка: ' + err.message);
+      _resetUpdateBtn();
+    });
+}
 
 /* ================================================================
    Hash-based state persistence

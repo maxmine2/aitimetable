@@ -1,14 +1,92 @@
 """Local HTTP server for the timetable viewer with update endpoint."""
 
+import argparse
+import collections
 import http.server
 import json
+import re
 import subprocess
 import sys
 import threading
 import time
 import webbrowser
 
-PORT = 8764
+DEFAULT_PORT = 8764
+
+# ---------------------------------------------------------------------------
+# Security — request filtering & rate limiting
+# ---------------------------------------------------------------------------
+
+# Only these files may be served (relative to CWD). Everything else → 403.
+_ALLOWED_FILES = frozenset({
+    "/timetable.html",
+    "/nsu_data.json",
+    "/favicon.ico",
+})
+
+# API paths handled separately
+_API_PATHS = frozenset({
+    "/api/update",
+    "/api/update/status",
+})
+
+# Patterns that vulnerability scanners and bots typically probe
+_BLOCKED_PATH_RE = re.compile(
+    r"(?i)"
+    r"(?:\.\.)"                                       # path traversal
+    r"|(?:\.(?:env|git|svn|htaccess|htpasswd|ds_store|bak|old|orig|swp|sql|log|config))" # sensitive files
+    r"|(?:/(?:wp-|wordpress|admin|phpmyadmin|phpinfo|cgi-bin|\.well-known|xmlrpc|"
+    r"actuator|manager|solr|struts|jenkins|jmx|console|invoke|debug|trace|"
+    r"telescope|_profiler|elfinder|filemanager|upload|shell|eval|cmd|exec|"
+    r"setup|install|config|backup|dump|db|database|mysql|postgres|sqlite|"
+    r"api/v\d|graphql|rest|swagger|json/|yaml/|info|status|health|metrics|"
+    r"\.php|\.asp|\.jsp|\.cgi|\.pl|\.py|\.rb|\.sh|\.bat))"
+    r"|(?:%(?:00|2e|5c|c0|c1|25))"                   # encoded traversal / null bytes
+    r"|(?:[<>\"';])"                                  # XSS / injection chars in URL
+)
+
+# User-Agent substrings associated with automated scanners
+_BLOCKED_UA_RE = re.compile(
+    r"(?i)"
+    r"(?:nmap|nikto|sqlmap|dirbuster|gobuster|ffuf|wfuzz|nuclei|masscan|"
+    r"zap|burp|hydra|medusa|skipfish|acunetix|nessus|openvas|whatweb|"
+    r"curl/|wget/|python-requests/|httpclient|Go-http-client|libwww-perl|"
+    r"scrapy|zgrab|censys|shodan)"
+)
+
+# Per-IP rate limiter: max requests in a sliding window
+_RATE_WINDOW = 10       # seconds
+_RATE_MAX_HITS = 60     # max requests per window per IP
+_rate_hits: dict[str, collections.deque] = {}
+_rate_lock = threading.Lock()
+_ban_until: dict[str, float] = {}    # IP → epoch until banned
+
+
+def _check_rate(ip: str) -> bool:
+    """Return True if the request is allowed, False if rate-limited."""
+    now = time.time()
+    with _rate_lock:
+        # Check existing ban
+        if ip in _ban_until:
+            if now < _ban_until[ip]:
+                return False
+            del _ban_until[ip]
+
+        hits = _rate_hits.setdefault(ip, collections.deque())
+        # Purge old entries
+        while hits and hits[0] < now - _RATE_WINDOW:
+            hits.popleft()
+        if len(hits) >= _RATE_MAX_HITS:
+            _ban_until[ip] = now + 60  # ban for 60 s on burst
+            return False
+        hits.append(now)
+        return True
+
+
+def _block_ip(ip: str, seconds: int = 300) -> None:
+    """Immediately ban an IP for *seconds*."""
+    with _rate_lock:
+        _ban_until[ip] = time.time() + seconds
 
 # ---------------------------------------------------------------------------
 # Update state — guarded by a lock
@@ -18,10 +96,90 @@ _updating = False
 _last_finish: float = 0.0  # epoch when the last update finished
 _MIN_INTERVAL = 600  # seconds (10 minutes)
 
+# Progress tracking (written by updater thread, read by status endpoint)
+_progress_current = 0
+_progress_total = 0
+_progress_phase = ""  # e.g. "faculties", "groups"
 
-def _run_update() -> dict:
-    """Run analysis.py in a subprocess. Returns a status dict."""
-    global _updating, _last_finish
+_PROGRESS_RE = re.compile(r"\[(\d+)/(\d+)\]")
+
+
+def _run_update_bg() -> None:
+    """Run analysis.py in a background thread, streaming progress."""
+    global _updating, _last_finish, _progress_current, _progress_total, _progress_phase
+    _result_box: dict = {}
+
+    try:
+        with _lock:
+            _progress_current = 0
+            _progress_total = 0
+            _progress_phase = "Запуск…"
+
+        proc = subprocess.Popen(
+            [sys.executable, "-u", "analysis.py"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,  # line-buffered
+        )
+
+        output_lines: list[str] = []
+        for line in proc.stdout:                 # type: ignore[union-attr]
+            output_lines.append(line)
+            # Parse progress from "[current/total]"
+            m = _PROGRESS_RE.search(line)
+            if m:
+                with _lock:
+                    _progress_current = int(m.group(1))
+                    _progress_total = int(m.group(2))
+                    _progress_phase = "Загрузка расписаний"
+            elif "Fetching list of faculties" in line:
+                with _lock:
+                    _progress_phase = "Факультеты…"
+            elif "Discovered" in line and "unique groups" in line:
+                # Extract total from "Discovered 690 unique groups …"
+                dm = re.search(r"Discovered (\d+) unique groups", line)
+                if dm:
+                    with _lock:
+                        _progress_total = int(dm.group(1))
+                        _progress_phase = "Загрузка расписаний"
+
+        proc.wait(timeout=300)
+        success = proc.returncode == 0
+        tail = "".join(output_lines[-40:])
+
+        with _lock:
+            if success:
+                _progress_phase = "Готово"
+            else:
+                _progress_phase = "Ошибка"
+            _result_box_store["result"] = {
+                "status": "ok" if success else "error",
+                "message": "Update completed." if success else "Update failed.",
+                "output": tail[-2000:],
+            }
+    except subprocess.TimeoutExpired:
+        with _lock:
+            _progress_phase = "Таймаут"
+            _result_box_store["result"] = {"status": "error", "message": "Update timed out (5 min)."}
+        proc.kill()  # type: ignore[possibly-undefined]
+    except Exception as exc:
+        with _lock:
+            _progress_phase = "Ошибка"
+            _result_box_store["result"] = {"status": "error", "message": str(exc)}
+    finally:
+        with _lock:
+            _updating = False
+            _last_finish = time.time()
+
+
+# Shared dict to pass result from thread back to the POST response
+_result_box_store: dict = {}
+
+
+def _start_update() -> dict:
+    """Try to start an update. Returns immediate status."""
+    global _updating
 
     with _lock:
         if _updating:
@@ -35,36 +193,30 @@ def _run_update() -> dict:
                 "retry_after": remaining,
             }
         _updating = True
+        _result_box_store.pop("result", None)
 
-    try:
-        result = subprocess.run(
-            [sys.executable, "analysis.py"],
-            capture_output=True,
-            text=True,
-            timeout=300,  # 5 min hard limit
-        )
-        success = result.returncode == 0
-        return {
-            "status": "ok" if success else "error",
-            "message": "Update completed." if success else "Update failed.",
-            "stdout": result.stdout[-2000:] if result.stdout else "",
-            "stderr": result.stderr[-2000:] if result.stderr else "",
-        }
-    except subprocess.TimeoutExpired:
-        return {"status": "error", "message": "Update timed out (5 min)."}
-    except Exception as exc:
-        return {"status": "error", "message": str(exc)}
-    finally:
-        with _lock:
-            _updating = False
-            _last_finish = time.time()
+    t = threading.Thread(target=_run_update_bg, daemon=True)
+    t.start()
+    return {"status": "started", "message": "Update started."}
 
 
 def _status() -> dict:
-    """Return current update status without triggering an update."""
+    """Return current update status with progress info."""
     with _lock:
         if _updating:
-            return {"status": "busy"}
+            return {
+                "status": "busy",
+                "current": _progress_current,
+                "total": _progress_total,
+                "phase": _progress_phase,
+            }
+        # Check if a result is available from a just-finished update
+        result = _result_box_store.get("result")
+        if result:
+            out = dict(result)
+            out["current"] = _progress_current
+            out["total"] = _progress_total
+            return out
         elapsed = time.time() - _last_finish
         if _last_finish and elapsed < _MIN_INTERVAL:
             return {"status": "cooldown", "retry_after": int(_MIN_INTERVAL - elapsed)}
@@ -72,39 +224,117 @@ def _status() -> dict:
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
+
+    # Disable directory listings entirely
+    def list_directory(self, path):
+        self.send_error(403)
+        return None
+
+    # ---- security gate (runs before every request) ----
+    def _guard(self) -> bool:
+        """Return True if the request is allowed. Sends error & returns False otherwise."""
+        ip = self.client_address[0]
+
+        # 1. Rate limit
+        if not _check_rate(ip):
+            self.send_error(429, "Too Many Requests")
+            return False
+
+        # 2. Block bad user-agents
+        ua = self.headers.get("User-Agent", "")
+        if _BLOCKED_UA_RE.search(ua):
+            _block_ip(ip, 300)
+            self.send_error(403, "Forbidden")
+            return False
+
+        # 3. Block suspicious URL patterns
+        if _BLOCKED_PATH_RE.search(self.path):
+            _block_ip(ip, 300)
+            self.send_error(403, "Forbidden")
+            return False
+
+        # 4. Reject oversized headers (Content-Length for POST)
+        cl = self.headers.get("Content-Length")
+        if cl:
+            try:
+                if int(cl) > 4096:
+                    self.send_error(413, "Payload Too Large")
+                    return False
+            except ValueError:
+                self.send_error(400, "Bad Request")
+                return False
+
+        return True
+
+    def _add_security_headers(self):
+        """Append hardening headers to every response."""
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("X-XSS-Protection", "1; mode=block")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Content-Security-Policy",
+                         "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'")
+        self.send_header("Permissions-Policy",
+                         "camera=(), microphone=(), geolocation=()")
+
+    def _json_response(self, data: dict, status: int = 200):
+        body = json.dumps(data, ensure_ascii=False).encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self._add_security_headers()
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_POST(self):
+        if not self._guard():
+            return
         if self.path == "/api/update":
-            result = _run_update()
-            body = json.dumps(result, ensure_ascii=False).encode()
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            self._json_response(_start_update())
         else:
             self.send_error(404)
 
     def do_GET(self):
+        if not self._guard():
+            return
         if self.path == "/api/update/status":
-            result = _status()
-            body = json.dumps(result, ensure_ascii=False).encode()
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-        else:
-            super().do_GET()
+            self._json_response(_status())
+            return
+
+        # Whitelist static files
+        clean = self.path.split("?")[0].split("#")[0]
+        if clean == "/":
+            clean = "/timetable.html"
+        if clean not in _ALLOWED_FILES:
+            self.send_error(403, "Forbidden")
+            return
+
+        super().do_GET()
+
+    # Block all other HTTP methods
+    def do_PUT(self):     self.send_error(405, "Method Not Allowed")
+    def do_DELETE(self):  self.send_error(405, "Method Not Allowed")
+    def do_PATCH(self):   self.send_error(405, "Method Not Allowed")
+    def do_OPTIONS(self): self.send_error(405, "Method Not Allowed")
+
+    def end_headers(self):
+        self._add_security_headers()
+        super().end_headers()
 
     def log_message(self, fmt, *args):
-        # Keep default logging but suppress noisy static-file GETs
-        if len(args) >= 1 and isinstance(args[0], str) and args[0].startswith("GET /api"):
+        if len(args) >= 1 and isinstance(args[0], str) and "/api/" in args[0]:
             return
         super().log_message(fmt, *args)
 
 
-with http.server.HTTPServer(("", PORT), Handler) as srv:
-    url = f"http://localhost:{PORT}/timetable.html"
-    print(f"Serving at {url}")
-    webbrowser.open(url)
-    srv.serve_forever()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Timetable Viewer HTTP server")
+    parser.add_argument("-p", "--port", type=int, default=DEFAULT_PORT,
+                        help=f"Port to listen on (default: {DEFAULT_PORT})")
+    args = parser.parse_args()
+
+    with http.server.HTTPServer(("127.0.0.1", args.port), Handler) as srv:
+        url = f"http://localhost:{args.port}/timetable.html"
+        print(f"Serving at {url}")
+        webbrowser.open(url)
+        srv.serve_forever()

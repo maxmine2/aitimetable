@@ -731,10 +731,12 @@
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
+    justify-content: center;
   }
   .result-card {
-    flex: 1;
+    flex: 0 1 calc((100% - 24px) / 3);
     min-width: 260px;
+    max-width: calc((100% - 24px) / 3);
     background: #fff;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0,0,0,.1);
@@ -1083,6 +1085,167 @@
   td.heatmap-cell .rank-overlay.ro-2 { background: #95a5a6; }
   td.heatmap-cell .rank-overlay.ro-3 { background: #cd7f32; }
 
+  /* ---------- clickable heatmap cells ---------- */
+  td.heatmap-cell { cursor: pointer; }
+  td.heatmap-cell:hover { filter: brightness(0.92); }
+  td.heatmap-cell.heat-0:hover { background: #eef0f3; }
+
+  /* ---------- pin mode (was compare mode) ---------- */
+  .compare-btn {
+    padding: 6px 14px; border: 2px solid #8e44ad; border-radius: 4px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    background: #fff; color: #8e44ad; transition: all .15s;
+    margin-left: 6px;
+  }
+  .compare-btn:hover { background: #f3e8fa; }
+  .compare-btn.active { background: #8e44ad; color: #fff; }
+  /* pairwise compare button on result cards */
+  .card-compare-btn {
+    display: block; width: 100%; padding: 6px 0;
+    border: none; border-top: 1px solid #eee;
+    background: #fafbfd; color: #2d5ca6; font-size: 12px;
+    font-weight: 600; cursor: pointer; transition: background .12s;
+  }
+  .card-compare-btn:hover { background: #e8f0fe; }
+  .card-compare-btn.selected { background: #2d5ca6; color: #fff; }
+  .pairwise-compare-bar {
+    display: flex; gap: 8px; align-items: center; justify-content: center;
+    margin: 10px auto 0; max-width: 1200px;
+    padding: 8px 14px; background: #f0f4ff; border-radius: 8px;
+    font-size: 13px; color: #2d5ca6; animation: fadeIn .15s ease-out;
+  }
+  .pairwise-compare-bar button {
+    padding: 5px 16px; border-radius: 4px; border: none;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .pairwise-run { background: #2d5ca6; color: #fff; }
+  .pairwise-run:hover { background: #1e3a6e; }
+  .pairwise-cancel { background: #eee; color: #666; }
+  .pairwise-cancel:hover { background: #ddd; }
+  .compare-chip-bar {
+    display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+    margin-top: 6px; min-height: 0;
+  }
+  .compare-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: 12px; font-size: 12px;
+    font-weight: 600; color: #fff; animation: chipPop .2s ease-out;
+  }
+  .compare-chip .chip-x {
+    cursor: pointer; font-size: 13px; font-weight: 700; border: none;
+    background: none; color: rgba(255,255,255,.8); padding: 0; line-height: 1;
+  }
+  .compare-chip .chip-x:hover { color: #fff; }
+  td.heatmap-cell.compare-sel { position: relative; }
+  td.heatmap-cell.compare-sel::before {
+    content: ''; position: absolute; inset: 0;
+    border: 3px solid var(--cmp-color, #e6194b);
+    border-radius: 2px; pointer-events: none; z-index: 2;
+  }
+  .cmp-badge {
+    position: absolute; top: 2px; right: 2px; z-index: 3;
+    width: 18px; height: 18px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; line-height: 1;
+    pointer-events: none; box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  }
+  .compare-results-section {
+    max-width: 1200px; margin: 18px auto 0; padding-bottom: 40px;
+  }
+  .compare-results-section h3 {
+    font-size: 14px; color: #555; margin: 0 0 10px; font-weight: 700;
+  }
+  .compare-results-row {
+    display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+    margin-bottom: 10px;
+  }
+  .compare-results-row .result-card {
+    flex: 0 1 calc((100% - 24px) / 3);
+    min-width: 260px; max-width: calc((100% - 24px) / 3);
+  }
+
+  /* ---------- audience diff / comparison ---------- */
+  /* diff modal */
+  .diff-modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.45); z-index: 1100;
+    align-items: center; justify-content: center;
+    animation: fadeIn .15s ease-out;
+  }
+  .diff-modal-overlay.open { display: flex; }
+  .diff-modal {
+    background: #fff; border-radius: 10px;
+    width: 96vw; max-width: 1400px;
+    max-height: 90vh; display: flex; flex-direction: column;
+    box-shadow: 0 12px 48px rgba(0,0,0,.25);
+    animation: fadeInScale .2s ease-out;
+  }
+  .diff-modal .gm-header { padding: 14px 20px; }
+  .diff-modal .gm-header h3 { font-size: 15px; }
+  .diff-modal .dm-body {
+    padding: 0; overflow: hidden; flex: 1;
+    display: flex; gap: 0;
+  }
+  .diff-modal .dm-col {
+    flex: 1; overflow-y: auto; padding: 12px 16px 20px;
+    min-width: 0;
+  }
+  .diff-modal .dm-col + .dm-col {
+    border-left: 1px solid #e8e8e8;
+  }
+  .diff-modal .dm-col-header {
+    font-size: 13px; font-weight: 700; padding: 8px 12px;
+    border-radius: 6px; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .diff-modal .dm-col-header .tab-count {
+    font-size: 11px; font-weight: 600; opacity: .8;
+    background: rgba(255,255,255,.5); padding: 1px 6px; border-radius: 8px;
+  }
+  .dm-col-center { border-left: 1px solid #e8e8e8; border-right: 1px solid #e8e8e8; }
+  .dm-metagroup {
+    background: #fff; border: 1px solid #e0e0e0; border-radius: 8px;
+    margin-bottom: 8px; overflow: hidden;
+  }
+  .dm-metagroup-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 10px; font-size: 12px; font-weight: 700; cursor: pointer;
+    transition: background .12s; user-select: none;
+  }
+  .dm-metagroup-header:hover { filter: brightness(.96); }
+  .dm-mg-name { flex: 1; }
+  .dm-mg-count {
+    font-size: 11px; font-weight: 600; padding: 1px 7px;
+    border-radius: 8px; background: rgba(255,255,255,.6);
+  }
+  .dm-mg-green .dm-metagroup-header { background: #e6f4ea; color: #1a6e3a; }
+  .dm-mg-blue .dm-metagroup-header { background: #e8f0fe; color: #2d5ca6; }
+  .dm-mg-red .dm-metagroup-header { background: #fde8e8; color: #b91c1c; }
+  .dm-metagroup-body {
+    padding: 6px 10px 8px; border-top: 1px solid #eee;
+    font-size: 12px; display: none;
+  }
+  .dm-metagroup.expanded .dm-metagroup-body { display: block; }
+  .dm-metagroup-body .gm-group-chip {
+    font-size: 11px; padding: 1px 7px; margin: 1px 2px;
+  }
+  .dm-summary-stats {
+    display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;
+  }
+  .dm-summary-stat {
+    font-size: 12px; padding: 3px 10px; border-radius: 12px;
+    font-weight: 600;
+  }
+  .dm-ss-green { background: #e6f4ea; color: #1a6e3a; }
+  .dm-ss-blue  { background: #e8f0fe; color: #2d5ca6; }
+  .dm-ss-red   { background: #fde8e8; color: #b91c1c; }
+  @media (max-width: 900px) {
+    .diff-modal .dm-body { flex-direction: column; }
+    .diff-modal .dm-col + .dm-col { border-left: none; border-top: 1px solid #eee; }
+    .diff-modal .dm-col { max-height: 35vh; }
+    .dm-col-center { border-left: none; border-right: none; border-top: 1px solid #eee; border-bottom: 1px solid #eee; }
+  }
+
   /* ---------- footer ---------- */
   .footer {
     text-align: center;
@@ -1164,6 +1327,7 @@
         <label><input type="checkbox" class="pred-day" value="6"> Сб</label>
       </span>
       <button class="pred-run-btn" onclick="runPrediction()">Рассчитать</button>
+      <button class="compare-btn" id="compare-btn" onclick="toggleCompareMode()">� Отметить слоты</button>
     </div>
     <div class="share-bar-inner">
       <span class="share-label">🔗 Поделиться:</span>
@@ -1199,7 +1363,7 @@
 </div><!-- /.app-body -->
 
 <div class="footer">
-  Version 1.2. Made with ❤️ by Claude Opus, Claude Sonnet, Gemini 3.1 and others under control of Max Budko. Data source: <a href="https://table.nsu.ru/" target="_blank" rel="noopener">table.nsu.ru</a>. <br>
+  Version 1.3. Made with ❤️ by Claude Opus, Claude Sonnet, Gemini 3.1 and others under strict control of Max Budko. Data source: <a href="https://table.nsu.ru/" target="_blank" rel="noopener">table.nsu.ru</a>. Source code: <a href="https://github.com/maxmine2/aitimetable" target="_blank" rel="noopener">github.com/maxmine2/aitimetable</a> <br>
 </div>
 
 <!-- Groups modal overlay -->
@@ -1214,6 +1378,21 @@
       <div class="gm-right" id="gm-right">
         <div class="gm-right-placeholder">Нажмите на группу слева, чтобы увидеть расписание и детали расчёта</div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Comparison modal overlay -->
+<div class="diff-modal-overlay" id="diff-modal-overlay" onclick="if(event.target===this)closeDiffModal()">
+  <div class="diff-modal">
+    <div class="gm-header">
+      <h3 id="dm-title">Сравнение слотов</h3>
+      <button class="gm-close" onclick="closeDiffModal()">&times;</button>
+    </div>
+    <div class="dm-body" id="dm-body">
+      <div class="dm-col" id="dm-col-a"></div>
+      <div class="dm-col dm-col-center" id="dm-col-both"></div>
+      <div class="dm-col" id="dm-col-b"></div>
     </div>
   </div>
 </div>
@@ -1650,6 +1829,11 @@ function findBestEventSlots(groupsDict, weekParity, morningCutoff, eveningCutoff
    Prediction UI State
    ================================================================ */
 let lastPredictionResults = null;
+let _extraResults = {};  // cell-click (key=100) and compare (keys 50..55) results
+function getResult(idx) {
+  if (_extraResults[idx] !== undefined) return _extraResults[idx];
+  return lastPredictionResults && lastPredictionResults[idx];
+}
 
 function collectHeatmapGroupIds() {
   if (!heatFilters.length) {
@@ -1699,6 +1883,7 @@ function runPrediction() {
 
   const top3 = findBestEventSlots(groupsDict, weekParity, morningCutoff, eveningCutoff, eventLocation, allowedDays);
   lastPredictionResults = top3;
+  _pairwiseSelection = [];
 
   renderHeatmap(); // re-render to apply highlights + results
   saveHash();
@@ -1732,7 +1917,11 @@ function renderPredictionResults(top3) {
       html += renderAnchorBar(i);
       html += renderFatigueHistogram(i);
     }
-    html += `</div></div>`;
+    html += `</div>`;
+    if (!isImported) {
+      html += `<button class="card-compare-btn" data-result-key="${i}" onclick="togglePairwiseSelect('${i}')">⚖ Сравнить</button>`;
+    }
+    html += `</div>`;
   });
   html += '</div>';
 
@@ -1741,14 +1930,18 @@ function renderPredictionResults(top3) {
   if (shareBtn) shareBtn.style.display = '';
 
   container.insertAdjacentHTML('beforeend', html);
+  updatePairwiseButtons();
+
+  // Render compare results if any
+  renderCompareResults();
 }
 
 /* ================================================================
    Groups Modal — tree breakdown
    ================================================================ */
 function openGroupsModal(rankIdx, tab) {
-  if (!lastPredictionResults || !lastPredictionResults[rankIdx]) return;
-  const r = lastPredictionResults[rankIdx];
+  const r = getResult(rankIdx);
+  if (!r) return;
   const bell = DATA.bell_schedule[String(r.slot)];
   const dayName = DAY_NAMES[r.day];
 
@@ -1897,7 +2090,7 @@ function showGroupDetail(gid, rankIdx, event) {
   const g = DATA.groups[gid];
   if (!g) return;
 
-  const r = lastPredictionResults && lastPredictionResults[rankIdx];
+  const r = getResult(rankIdx);
   const info = r && r.groupDetails ? r.groupDetails[gid] : null;
 
   let html = `<div class="gm-detail-card">`;
@@ -1984,7 +2177,7 @@ function showGroupDetail(gid, rankIdx, event) {
 }
 
 function renderMiniDaySchedule(gid, rankIdx) {
-  const r = lastPredictionResults && lastPredictionResults[rankIdx];
+  const r = getResult(rankIdx);
   if (!r) return '';
   const g = DATA.groups[gid];
   if (!g) return '';
@@ -2087,7 +2280,7 @@ function closeGroupsModal() {
 let patternIncludeLess = false;
 
 function buildPatternTab(rankIdx) {
-  const r = lastPredictionResults && lastPredictionResults[rankIdx];
+  const r = getResult(rankIdx);
   if (!r) return '<div class="gm-empty">Нет данных</div>';
 
   const ids = patternIncludeLess ? [...r.moreLikely, ...r.lessLikely] : r.moreLikely;
@@ -2162,7 +2355,7 @@ function rebuildPatternTab(rankIdx) {
 }
 
 function showPatternDetail(key, rankIdx) {
-  const r = lastPredictionResults && lastPredictionResults[rankIdx];
+  const r = getResult(rankIdx);
   if (!r) return;
 
   const ids = patternIncludeLess ? [...r.moreLikely, ...r.lessLikely] : r.moreLikely;
@@ -2313,7 +2506,7 @@ function renderPatternAnchorBar(gids, r) {
 
 function buildPatternTabDetail(rankIdx) {
   // Summary view for right pane when patterns tab is active
-  const r = lastPredictionResults && lastPredictionResults[rankIdx];
+  const r = getResult(rankIdx);
   if (!r) return '';
   let html = '<div style="padding:8px 0">';
   html += renderAnchorBar(rankIdx);
@@ -2326,7 +2519,7 @@ function buildPatternTabDetail(rankIdx) {
    Tool A — Anchor-point bar (from which building students arrive)
    ================================================================ */
 function renderAnchorBar(rankIdx) {
-  const r = lastPredictionResults && lastPredictionResults[rankIdx];
+  const r = getResult(rankIdx);
   if (!r || !r.groupDetails) return '';
 
   const locCounts = {1:0, 2:0, 3:0, 4:0, 5:0};
@@ -2369,7 +2562,7 @@ function renderAnchorBar(rankIdx) {
    Tool B — Audience fatigue histogram
    ================================================================ */
 function renderFatigueHistogram(rankIdx) {
-  const r = lastPredictionResults && lastPredictionResults[rankIdx];
+  const r = getResult(rankIdx);
   if (!r || !r.groupDetails) return '';
 
   const buckets = [0, 0, 0, 0, 0]; // 0, 1, 2, 3, 4+ prior classes
@@ -2409,14 +2602,12 @@ function highlightPredictedSlots(top3) {
   const rows = table.querySelectorAll('tbody tr');
   top3.forEach((r, idx) => {
     const rank = idx + 1;
-    // row index = slot - 1, column = day (1-based in table: col 0 = time, col 1 = day 1, etc.)
     const row = rows[r.slot - 1];
     if (!row) return;
-    const cell = row.children[r.day]; // day 1 → index 1 (index 0 is time cell)
+    const cell = row.children[r.day];
     if (!cell) return;
     cell.classList.add('slot-rank-' + rank);
     cell.style.cursor = 'pointer';
-    cell.onclick = function() { openGroupsModal(idx, 'more'); };
     // Add rank overlay badge
     const rankEmojis = ['\ud83e\udd47', '\ud83e\udd48', '\ud83e\udd49'];
     const overlay = document.createElement('span');
@@ -2425,6 +2616,420 @@ function highlightPredictedSlots(top3) {
     cell.style.position = 'relative';
     cell.appendChild(overlay);
   });
+  // Also highlight compare selections
+  highlightCompareSlots();
+}
+
+/* ================================================================
+   Cell click handler — works for any heatmap cell
+   ================================================================ */
+function handleCellClick(day, slot) {
+  if (compareMode) {
+    toggleCompareSlot(day, slot);
+    return;
+  }
+  // Score this slot and show in modal
+  if (heatWeekFilter === 'all') return; // need specific week
+  const eventLocation = parseInt(document.getElementById('pred-location').value);
+  const weekParity = heatWeekFilter;
+  const groupsDict = collectHeatmapGroupIds();
+  if (!Object.keys(groupsDict).length) return;
+
+  // Build a result object for this slot
+  let totalScore = 0;
+  const moreLikely = [], lessLikely = [], haveClass = [];
+  const groupDetails = {};
+  for (const [gid, group] of Object.entries(groupsDict)) {
+    const result = scoreGroup(group, day, slot, weekParity, eventLocation);
+    groupDetails[gid] = result;
+    if (result.bucket === 'have_class') {
+      haveClass.push(gid);
+    } else if (result.bucket === 'more_likely') {
+      moreLikely.push(gid);
+      totalScore += result.score;
+    } else {
+      lessLikely.push(gid);
+      totalScore += result.score;
+    }
+  }
+  const slotResult = { day, slot, totalScore, moreCount: moreLikely.length,
+    haveClassCount: haveClass.length, moreLikely, lessLikely, haveClass, groupDetails };
+
+  // Store in _extraResults for modal access (never pollute lastPredictionResults)
+  _extraResults[100] = slotResult;
+  openGroupsModal(100, 'more');
+}
+
+/* ================================================================
+   Compare Mode
+   ================================================================ */
+const COMPARE_COLORS = [
+  '#e6194b', // vivid red
+  '#f58231', // bright orange
+  '#ffe119', // yellow
+  '#911eb4', // purple
+  '#f032e6', // magenta
+  '#42d4f4', // cyan
+];
+const COMPARE_TEXT = [
+  '#fff', '#fff', '#222', '#fff', '#fff', '#222',
+];
+let compareMode = false;
+let compareSlots = []; // [{day, slot, color}, ...] max 6
+let compareResults = []; // scored result objects
+
+function toggleCompareMode() {
+  compareMode = !compareMode;
+  const btn = document.getElementById('compare-btn');
+  btn.classList.toggle('active', compareMode);
+  btn.textContent = compareMode ? '📌 Выбор (вкл)' : '📌 Отметить слоты';
+  if (!compareMode && compareSlots.length) {
+    // keep selections visible
+  }
+  renderCompareChips();
+}
+
+function toggleCompareSlot(day, slot) {
+  const existing = compareSlots.findIndex(s => s.day === day && s.slot === slot);
+  if (existing !== -1) {
+    compareSlots.splice(existing, 1);
+  } else {
+    if (compareSlots.length >= 6) return; // max 6
+    const idx = compareSlots.length;
+    const color = COMPARE_COLORS[idx % COMPARE_COLORS.length];
+    compareSlots.push({ day, slot, color });
+  }
+  // Re-score all compare slots
+  recomputeCompareResults();
+  renderHeatmap();
+}
+
+function removeCompareSlot(idx) {
+  compareSlots.splice(idx, 1);
+  // Reassign colors sequentially
+  compareSlots.forEach((s, i) => {
+    s.color = COMPARE_COLORS[i % COMPARE_COLORS.length];
+  });
+  recomputeCompareResults();
+  renderHeatmap();
+}
+
+function clearCompare() {
+  compareSlots = [];
+  compareResults = [];
+  _lastAudienceDiff = null;
+  _pairwiseSelection = [];
+  const bar = document.getElementById('pairwise-compare-bar');
+  if (bar) bar.remove();
+  renderHeatmap();
+}
+
+function recomputeCompareResults() {
+  if (heatWeekFilter === 'all') { compareResults = []; return; }
+  const eventLocation = parseInt(document.getElementById('pred-location').value);
+  const weekParity = heatWeekFilter;
+  const groupsDict = collectHeatmapGroupIds();
+  if (!Object.keys(groupsDict).length) { compareResults = []; return; }
+
+  compareResults = compareSlots.map(cs => {
+    let totalScore = 0;
+    const moreLikely = [], lessLikely = [], haveClass = [];
+    const groupDetails = {};
+    for (const [gid, group] of Object.entries(groupsDict)) {
+      const result = scoreGroup(group, cs.day, cs.slot, weekParity, eventLocation);
+      groupDetails[gid] = result;
+      if (result.bucket === 'have_class') haveClass.push(gid);
+      else if (result.bucket === 'more_likely') { moreLikely.push(gid); totalScore += result.score; }
+      else { lessLikely.push(gid); totalScore += result.score; }
+    }
+    return { day: cs.day, slot: cs.slot, totalScore, moreCount: moreLikely.length,
+      haveClassCount: haveClass.length, moreLikely, lessLikely, haveClass, groupDetails,
+      _compareColor: cs.color };
+  });
+}
+
+function highlightCompareSlots() {
+  const table = document.querySelector('table.schedule');
+  if (!table) return;
+  const rows = table.querySelectorAll('tbody tr');
+  compareSlots.forEach((cs, i) => {
+    const row = rows[cs.slot - 1];
+    if (!row) return;
+    const cell = row.children[cs.day];
+    if (!cell) return;
+    cell.classList.add('compare-sel');
+    cell.style.position = 'relative';
+    cell.style.setProperty('--cmp-color', cs.color);
+    // Add numbered badge
+    const badge = document.createElement('span');
+    badge.className = 'cmp-badge';
+    badge.textContent = i + 1;
+    badge.style.background = cs.color;
+    badge.style.color = COMPARE_TEXT[i % COMPARE_TEXT.length];
+    cell.appendChild(badge);
+  });
+}
+
+function renderCompareChips() {
+  let existing = document.getElementById('compare-chip-bar');
+  if (!compareMode && !compareSlots.length) {
+    if (existing) existing.remove();
+    return;
+  }
+  const panel = document.getElementById('prediction-panel');
+  if (!panel) return;
+  if (!existing) {
+    existing = document.createElement('div');
+    existing.id = 'compare-chip-bar';
+    existing.className = 'compare-chip-bar';
+    panel.appendChild(existing);
+  }
+  let html = '';
+  if (compareSlots.length) {
+    compareSlots.forEach((cs, i) => {
+      const dayName = DAY_NAMES[cs.day];
+      const txtColor = COMPARE_TEXT[i % COMPARE_TEXT.length];
+      html += `<span class="compare-chip" style="background:${cs.color};color:${txtColor}">${dayName}, ${cs.slot}-я п. <button class="chip-x" onclick="removeCompareSlot(${i})" style="color:${txtColor}">&times;</button></span>`;
+    });
+    html += `<button style="font-size:11px;color:#999;border:none;background:none;cursor:pointer;text-decoration:underline" onclick="clearCompare()">Очистить</button>`;
+  }
+  if (compareMode) {
+    html += `<span style="font-size:11px;color:#8e44ad;margin-left:4px">Кликайте на ячейки тепловой карты (макс. 6)</span>`;
+  }
+  existing.innerHTML = html;
+}
+
+/* ================================================================
+   Pairwise Comparison — select two cards to compare
+   ================================================================ */
+let _pairwiseSelection = []; // [{idx, resultKey}] max 2
+
+function togglePairwiseSelect(resultKey) {
+  const pos = _pairwiseSelection.findIndex(s => s === resultKey);
+  if (pos !== -1) {
+    _pairwiseSelection.splice(pos, 1);
+  } else {
+    if (_pairwiseSelection.length >= 2) {
+      _pairwiseSelection.shift();
+    }
+    _pairwiseSelection.push(resultKey);
+  }
+  updatePairwiseButtons();
+  renderPairwiseBar();
+}
+
+function updatePairwiseButtons() {
+  document.querySelectorAll('.card-compare-btn').forEach(btn => {
+    const key = btn.dataset.resultKey;
+    btn.classList.toggle('selected', _pairwiseSelection.includes(key));
+    btn.textContent = _pairwiseSelection.includes(key) ? '✓ Выбрано для сравнения' : '⚖ Сравнить';
+  });
+}
+
+function renderPairwiseBar() {
+  let bar = document.getElementById('pairwise-compare-bar');
+  if (_pairwiseSelection.length < 2) {
+    if (bar) bar.remove();
+    return;
+  }
+  const container = document.getElementById('content');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'pairwise-compare-bar';
+    bar.className = 'pairwise-compare-bar';
+    // Insert after prediction results
+    const predResults = document.querySelector('.prediction-results');
+    if (predResults && predResults.nextSibling) {
+      predResults.parentNode.insertBefore(bar, predResults.nextSibling);
+    } else {
+      container.appendChild(bar);
+    }
+  }
+  const rA = getResult(_pairwiseSelection[0]);
+  const rB = getResult(_pairwiseSelection[1]);
+  const nameA = DAY_NAMES[rA.day] + ', ' + rA.slot + '-я п.';
+  const nameB = DAY_NAMES[rB.day] + ', ' + rB.slot + '-я п.';
+  bar.innerHTML = `<span>⚖ Сравнение: <b>${esc(nameA)}</b> и <b>${esc(nameB)}</b></span>
+    <button class="pairwise-run" onclick="openPairwiseComparison()">Сравнить</button>
+    <button class="pairwise-cancel" onclick="clearPairwiseSelection()">Отмена</button>`;
+}
+
+function clearPairwiseSelection() {
+  _pairwiseSelection = [];
+  updatePairwiseButtons();
+  renderPairwiseBar();
+}
+
+function openPairwiseComparison() {
+  if (_pairwiseSelection.length !== 2) return;
+  const rA = getResult(_pairwiseSelection[0]);
+  const rB = getResult(_pairwiseSelection[1]);
+  if (!rA || !rB) return;
+  const diff = computeAudienceDiff(rA, rB);
+  openDiffModal();
+}
+
+function renderCompareResults() {
+  // Remove old compare section
+  const old = document.querySelector('.compare-results-section');
+  if (old) old.remove();
+  if (!compareResults.length) { _lastAudienceDiff = null; return; }
+  // Store compare results in _extraResults for modal access (indices 50+)
+
+  const container = document.getElementById('content');
+  let html = '<div class="compare-results-section">';
+  html += '<h3>📌 Отмеченные слоты</h3>';
+
+  // Render in rows of 3
+  for (let i = 0; i < compareResults.length; i += 3) {
+    html += '<div class="compare-results-row">';
+    for (let j = i; j < Math.min(i + 3, compareResults.length); j++) {
+      const r = compareResults[j];
+      const bell = DATA.bell_schedule[String(r.slot)];
+      const dayName = DAY_NAMES[r.day];
+      const cmpIdx = 50 + j;
+      _extraResults[cmpIdx] = r;
+      const badgeTxt = COMPARE_TEXT[j % COMPARE_TEXT.length];
+      html += `<div class="result-card">`;
+      html += `<div class="result-card-header" style="cursor:pointer;background:${r._compareColor};color:${badgeTxt}" onclick="openGroupsModal(${cmpIdx},'more')">`;
+      html += `<span class="rank-badge" style="background:rgba(255,255,255,.3);color:${badgeTxt}">${j + 1}</span>`;
+      html += `<span class="slot-info">${dayName}, ${r.slot}-я пара<br><small>${bell.half1} / ${bell.half2}</small></span>`;
+      html += `</div>`;
+      html += `<div class="result-card-body">`;
+      html += `<div class="stat-row clickable" onclick="openGroupsModal(${cmpIdx},'more')"><span class="stat-label">Скорее всего придут</span><span class="stat-value green">${r.moreLikely.length}</span></div>`;
+      if (!r.moreLikely.length) {
+        html += `<div style="font-size:11px;color:#999;padding:0 0 4px 4px;font-style:italic;">Нет групп в категории «Скорее придут»</div>`;
+      }
+      html += `<div class="stat-row clickable" onclick="openGroupsModal(${cmpIdx},'less')"><span class="stat-label">Вряд ли придут</span><span class="stat-value orange">${r.lessLikely.length}</span></div>`;
+      html += `<div class="stat-row clickable" onclick="openGroupsModal(${cmpIdx},'busy')"><span class="stat-label">Занятия в это время</span><span class="stat-value red">${r.haveClass.length}</span></div>`;
+      html += `<div class="stat-row"><span class="stat-label">Общий балл</span><span class="stat-value">${r.totalScore.toFixed(1)}</span></div>`;
+      html += renderAnchorBar(cmpIdx);
+      html += renderFatigueHistogram(cmpIdx);
+      html += `</div>`;
+      html += `<button class="card-compare-btn" data-result-key="${cmpIdx}" onclick="togglePairwiseSelect('${cmpIdx}')">⚖ Сравнить</button>`;
+      html += `</div>`;
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+
+  container.insertAdjacentHTML('beforeend', html);
+  renderCompareChips();
+  updatePairwiseButtons();
+}
+
+/* ================================================================
+   Audience Diff — pairwise slot comparison with metagroups
+   ================================================================ */
+let _lastAudienceDiff = null;
+
+function computeAudienceDiff(resA, resB) {
+  const setA = new Set(resA.moreLikely);
+  const setB = new Set(resB.moreLikely);
+
+  const onlyA  = []; // in A but not B
+  const onlyB  = []; // in B but not A
+  const both   = []; // in both A and B
+
+  for (const gid of setA) {
+    if (setB.has(gid)) both.push(gid);
+    else onlyA.push(gid);
+  }
+  for (const gid of setB) {
+    if (!setA.has(gid)) onlyB.push(gid);
+  }
+
+  _lastAudienceDiff = { onlyA, onlyB, both, resA, resB };
+  return _lastAudienceDiff;
+}
+
+/**
+ * Build metagroup aggregation: groups → [{key, label, count, gids, chipCls}]
+ * Metagroups aggregate by: Faculty + Degree + Year (e.g. "ФИТ — Бак 2к")
+ */
+function buildMetagroups(groupIds) {
+  const map = {}; // key → {label, shortLabel, gids}
+  for (const gid of groupIds) {
+    const g = DATA.groups[gid];
+    if (!g) continue;
+    const fac = g.faculty_name || 'Другое';
+    const deg = g.degree || '';
+    const yr = g.year || '';
+    const degLabel = deg === 'Магистратура' ? 'Маг' : (deg === 'Аспирантура' ? 'Асп' : 'Бак');
+    const key = fac + '|' + deg + '|' + yr;
+    if (!map[key]) {
+      const label = fac + (yr ? ' — ' + degLabel + ' ' + yr + 'к' : '');
+      map[key] = { label, fac, degLabel, yr, gids: [] };
+    }
+    map[key].gids.push(gid);
+  }
+  // Sort by faculty, then degree, then year
+  return Object.values(map).sort((a, b) => {
+    if (a.fac !== b.fac) return a.fac.localeCompare(b.fac);
+    if (a.degLabel !== b.degLabel) return a.degLabel.localeCompare(b.degLabel);
+    return (a.yr || 0) - (b.yr || 0);
+  });
+}
+
+function renderMetagroupList(metagroups, colorCls, chipCls) {
+  if (!metagroups.length) return '<div class="gm-empty">Нет групп</div>';
+  let html = '';
+  metagroups.forEach((mg, idx) => {
+    html += `<div class="dm-metagroup ${colorCls}" id="dmg-${colorCls}-${idx}">`;
+    html += `<div class="dm-metagroup-header" onclick="this.parentElement.classList.toggle('expanded')">`;
+    html += `<span class="dm-mg-name">${esc(mg.label)}</span>`;
+    html += `<span class="dm-mg-count">${mg.gids.length} гр.</span>`;
+    html += `</div>`;
+    html += `<div class="dm-metagroup-body">`;
+    for (const gid of mg.gids) {
+      html += `<span class="gm-group-chip ${chipCls}">${esc(gid)}</span>`;
+    }
+    html += `</div></div>`;
+  });
+  return html;
+}
+
+function openDiffModal() {
+  const diff = _lastAudienceDiff;
+  if (!diff) return;
+
+  const slotA = diff.resA, slotB = diff.resB;
+  const nameA = DAY_NAMES[slotA.day] + ', ' + slotA.slot + '-я пара';
+  const nameB = DAY_NAMES[slotB.day] + ', ' + slotB.slot + '-я пара';
+
+  document.getElementById('dm-title').textContent =
+    'Сравнение: ' + nameA + ' и ' + nameB;
+
+  const mgOnlyA = buildMetagroups(diff.onlyA);
+  const mgOnlyB = buildMetagroups(diff.onlyB);
+  const mgBoth  = buildMetagroups(diff.both);
+
+  // Column A — only in slot A
+  const colA = document.getElementById('dm-col-a');
+  let aHtml = `<div class="dm-col-header gc-red-header">Только в «${esc(nameA)}» <span class="tab-count">${diff.onlyA.length}</span></div>`;
+  aHtml += `<div style="font-size:11px;color:#666;margin-bottom:8px">Группы, которые скорее придут в <b>${esc(nameA)}</b>, но вряд ли в <b>${esc(nameB)}</b></div>`;
+  aHtml += renderMetagroupList(mgOnlyA, 'dm-mg-red', 'gc-red');
+  colA.innerHTML = aHtml;
+
+  // Column center — in both
+  const colBoth = document.getElementById('dm-col-both');
+  let bHtml = `<div class="dm-col-header" style="background:#e8f0fe;color:#2d5ca6">В обоих слотах <span class="tab-count">${diff.both.length}</span></div>`;
+  bHtml += `<div style="font-size:11px;color:#666;margin-bottom:8px">Группы, которые скорее придут в оба слота</div>`;
+  bHtml += renderMetagroupList(mgBoth, 'dm-mg-blue', 'gc-green');
+  colBoth.innerHTML = bHtml;
+
+  // Column B — only in slot B
+  const colB = document.getElementById('dm-col-b');
+  let cHtml = `<div class="dm-col-header gc-green-header">Только в «${esc(nameB)}» <span class="tab-count">${diff.onlyB.length}</span></div>`;
+  cHtml += `<div style="font-size:11px;color:#666;margin-bottom:8px">Группы, которые скорее придут в <b>${esc(nameB)}</b>, но вряд ли в <b>${esc(nameA)}</b></div>`;
+  cHtml += renderMetagroupList(mgOnlyB, 'dm-mg-green', 'gc-green');
+  colB.innerHTML = cHtml;
+
+  document.getElementById('diff-modal-overlay').classList.add('open');
+}
+
+function closeDiffModal() {
+  document.getElementById('diff-modal-overlay').classList.remove('open');
 }
 
 /* ================================================================
@@ -2718,7 +3323,7 @@ function addFilter() {
   }
 
   heatFilters.push({ faculty: fac, specialty: spec, degree: deg, year: yr, group: grp, label: parts.join(', ') });
-  lastPredictionResults = null;
+  lastPredictionResults = null; _extraResults = {};
   renderChips();
   renderHeatmap();
   saveHash();
@@ -2726,7 +3331,7 @@ function addFilter() {
 
 function removeFilter(idx) {
   heatFilters.splice(idx, 1);
-  lastPredictionResults = null;
+  lastPredictionResults = null; _extraResults = {};
   renderChips();
   renderHeatmap();
   saveHash();
@@ -2756,11 +3361,11 @@ function setWeekFilter(val) {
   if (val === 'all') {
     predPanel.classList.remove('show');
     sidebar.classList.remove('show');
-    lastPredictionResults = null; // clear predictions
+    lastPredictionResults = null; _extraResults = {}; // clear predictions
   } else {
     predPanel.classList.add('show');
     sidebar.classList.add('show');
-    lastPredictionResults = null; // clear predictions on week change
+    lastPredictionResults = null; _extraResults = {}; // clear predictions on week change
   }
   renderHeatmap();
   saveHash();
@@ -2841,9 +3446,9 @@ function renderHeatmap() {
         const nOdd  = countsOdd[key]  || 0;
         const nEven = countsEven[key] || 0;
         if (!nOdd && !nEven) {
-          html += '<td class="heatmap-cell heat-0">—</td>';
+          html += `<td class="heatmap-cell heat-0" onclick="handleCellClick(${d},${s})">—</td>`;
         } else {
-          html += '<td class="heatmap-cell"><div class="heat-split">';
+          html += `<td class="heatmap-cell" onclick="handleCellClick(${d},${s})"><div class="heat-split">`;
           html += heatHalf(nOdd,  maxCount, totalGroups, 'нч');
           html += heatHalf(nEven, maxCount, totalGroups, 'чт');
           html += '</div></td>';
@@ -2856,7 +3461,7 @@ function renderHeatmap() {
         const cls = n === 0 ? ' heat-0' : '';
         const pctOfTotal = totalGroups ? Math.round(n / totalGroups * 100) : 0;
         const title = `${n} из ${totalGroups} групп (${pctOfTotal}%)`;
-        html += `<td class="heatmap-cell${cls}" title="${title}"><span class="heat-single" style="${bg}${txtColor}">${n || '—'}</span></td>`;
+        html += `<td class="heatmap-cell${cls}" title="${title}" onclick="handleCellClick(${d},${s})"><span class="heat-single" style="${bg}${txtColor}">${n || '—'}</span></td>`;
       }
     }
     html += '</tr>';
@@ -2877,7 +3482,12 @@ function renderHeatmap() {
   if (lastPredictionResults && heatWeekFilter !== 'all') {
     highlightPredictedSlots(lastPredictionResults);
     renderPredictionResults(lastPredictionResults);
+  } else {
+    // Still highlight compare slots even without prediction
+    highlightCompareSlots();
+    renderCompareResults();
   }
+  renderCompareChips();
 }
 
 function heatHalf(n, maxCount, totalGroups, label) {
@@ -2940,6 +3550,8 @@ function refreshPresetCards() {
     html += '<span>🕐 ' + slotsLabel + '</span>';
     if (daysLabel) html += '<br><span>🗓 ' + daysLabel + '</span>';
     if (filtersCount) html += '<span>🔍 ' + filtersCount + ' фильтр.</span>';
+    const cmpCount = (cfg.cmp || []).length;
+    if (cmpCount) html += '<span>📊 ' + cmpCount + ' сравн.</span>';
     html += '</div>';
     html += '<div class="preset-card-actions">';
     html += '<button class="pc-load-btn" onclick="loadPreset(\'' + safeName + '\')">📂 Загрузить</button>';
@@ -2952,8 +3564,11 @@ function refreshPresetCards() {
 // Back-compat alias
 function refreshPresetSelect() { refreshPresetCards(); }
 
-function gatherPredConfig() {
-  return {
+/* ================================================================
+   Unified State — single format for presets, URL hash, sharing
+   ================================================================ */
+function gatherFullState() {
+  const state = {
     loc: document.getElementById('pred-location').value,
     m: document.getElementById('pred-morning').value,
     e: document.getElementById('pred-evening').value,
@@ -2964,9 +3579,15 @@ function gatherPredConfig() {
     })),
     week: heatWeekFilter
   };
+  // Compare slots
+  if (compareSlots.length) {
+    state.cmp = compareSlots.map(s => ({ d: s.day, s: s.slot }));
+  }
+  return state;
 }
 
-function applyPredConfig(cfg) {
+function applyFullState(cfg, opts) {
+  opts = opts || {};
   // Restore filters
   heatFilters = [];
   if (cfg.filters && cfg.filters.length) {
@@ -2993,7 +3614,31 @@ function applyPredConfig(cfg) {
   document.querySelectorAll('.pred-day').forEach(cb => {
     cb.checked = savedDays.includes(cb.value);
   });
+
+  // Restore compare slots
+  compareSlots = [];
+  compareResults = [];
+  _extraResults = {};
+  if (cfg.cmp && cfg.cmp.length) {
+    cfg.cmp.forEach((cs, i) => {
+      compareSlots.push({ day: cs.d, slot: cs.s, color: COMPARE_COLORS[i % COMPARE_COLORS.length] });
+    });
+    if (cfg.week && cfg.week !== 'all') {
+      recomputeCompareResults();
+    }
+  }
+
+  // Auto-run prediction if requested
+  if (opts.runPrediction && cfg.week && cfg.week !== 'all') {
+    runPrediction();
+  } else {
+    renderHeatmap();
+  }
 }
+
+// Legacy aliases for backward compatibility
+function gatherPredConfig() { return gatherFullState(); }
+function applyPredConfig(cfg) { applyFullState(cfg); }
 
 function savePreset() {
   const name = prompt('Название пресета:');
@@ -3029,26 +3674,33 @@ function deletePreset(name) {
    Share — encode/decode results as compact strings
    ================================================================ */
 function encodeResults() {
-  if (!lastPredictionResults || !lastPredictionResults.length) return null;
+  const hasPred = lastPredictionResults && lastPredictionResults.length;
+  const hasCmp = compareSlots.length > 0;
+  if (!hasPred && !hasCmp) return null;
 
   const payload = {
-    v: 1,  // version
+    v: 2,  // version — now includes compare
     w: heatWeekFilter,
     cfg: {
       loc: document.getElementById('pred-location').value,
       m: document.getElementById('pred-morning').value,
       e: document.getElementById('pred-evening').value,
       days: [...document.querySelectorAll('.pred-day')].filter(cb => cb.checked).map(cb => cb.value)
-    },
-    r: lastPredictionResults.map(r => ({
+    }
+  };
+  if (hasPred) {
+    payload.r = lastPredictionResults.map(r => ({
       d: r.day,
       s: r.slot,
       t: Math.round(r.totalScore * 10) / 10,
       ml: r.moreLikely.length,
       ll: r.lessLikely.length,
       hc: r.haveClass.length
-    }))
-  };
+    }));
+  }
+  if (hasCmp) {
+    payload.cmp = compareSlots.map(s => ({ d: s.day, s: s.slot }));
+  }
 
   // JSON → UTF-8 → deflate → base64url
   const json = JSON.stringify(payload);
@@ -3076,7 +3728,7 @@ function decodeResults(code) {
 
 function exportShareCode() {
   const code = encodeResults();
-  if (!code) { alert('Сначала рассчитайте результаты'); return; }
+  if (!code) { alert('Сначала рассчитайте результаты или выберите слоты для сравнения'); return; }
 
   // Copy to clipboard
   navigator.clipboard.writeText(code).then(() => {
@@ -3099,7 +3751,7 @@ function importShareCode() {
   if (!code) { alert('Вставьте код для импорта'); return; }
 
   const payload = decodeResults(code);
-  if (!payload || !payload.r || !payload.r.length) {
+  if (!payload || (!payload.r && !payload.cmp)) {
     alert('Неверный код — не удалось расшифровать');
     return;
   }
@@ -3121,16 +3773,32 @@ function importShareCode() {
     });
   }
 
-  // Build synthetic result objects for display
-  const DAY_SHORT = ['','Пн','Вт','Ср','Чт','Пт','Сб'];
-  lastPredictionResults = payload.r.map(r => ({
-    day: r.d, slot: r.s, totalScore: r.t,
-    moreLikely: Array(r.ml).fill('?'),
-    lessLikely: Array(r.ll).fill('?'),
-    haveClass: Array(r.hc).fill('?'),
-    groupDetails: {},
-    _imported: true
-  }));
+  // Build synthetic result objects for display (if present)
+  if (payload.r && payload.r.length) {
+    lastPredictionResults = payload.r.map(r => ({
+      day: r.d, slot: r.s, totalScore: r.t,
+      moreLikely: Array(r.ml).fill('?'),
+      lessLikely: Array(r.ll).fill('?'),
+      haveClass: Array(r.hc).fill('?'),
+      groupDetails: {},
+      _imported: true
+    }));
+  } else {
+    lastPredictionResults = null;
+  }
+
+  // Restore compare slots (v2+)
+  compareSlots = [];
+  compareResults = [];
+  _extraResults = {};
+  if (payload.cmp && payload.cmp.length) {
+    payload.cmp.forEach((cs, i) => {
+      compareSlots.push({ day: cs.d, slot: cs.s, color: COMPARE_COLORS[i % COMPARE_COLORS.length] });
+    });
+    // Compare results are synthetic when imported without filters
+    // They'll be recomputed on next renderHeatmap if groups are available
+    if (heatWeekFilter !== 'all') recomputeCompareResults();
+  }
 
   renderHeatmap();
   input.value = '';
@@ -3259,13 +3927,18 @@ function saveHash() {
     }
     if (heatWeekFilter !== 'all') state.week = heatWeekFilter;
     // Save prediction settings
-    if (lastPredictionResults && heatWeekFilter !== 'all') {
+    const hasPred = lastPredictionResults && heatWeekFilter !== 'all';
+    if (hasPred || compareSlots.length) {
       state.pred = {
         loc: document.getElementById('pred-location').value,
         m: document.getElementById('pred-morning').value,
         e: document.getElementById('pred-evening').value,
         days: [...document.querySelectorAll('.pred-day')].filter(cb => cb.checked).map(cb => cb.value)
       };
+    }
+    // Save compare slots
+    if (compareSlots.length) {
+      state.cmp = compareSlots.map(s => ({ d: s.day, s: s.slot }));
     }
   }
   location.hash = encodeURIComponent(JSON.stringify(state));
@@ -3304,17 +3977,33 @@ function restoreFromHash() {
       renderChips();
     }
     if (state.week) setWeekFilter(state.week);
-    // Restore prediction settings
+
+    // Restore compare slots
+    compareSlots = [];
+    compareResults = [];
+    _extraResults = {};
+    if (state.cmp && state.cmp.length) {
+      state.cmp.forEach((cs, i) => {
+        compareSlots.push({ day: cs.d, slot: cs.s, color: COMPARE_COLORS[i % COMPARE_COLORS.length] });
+      });
+    }
+
+    // Restore prediction settings & run
     if (state.pred && state.week) {
       document.getElementById('pred-location').value = state.pred.loc || '1';
       document.getElementById('pred-morning').value = state.pred.m || '1';
       document.getElementById('pred-evening').value = state.pred.e || '7';
-      // Restore day checkboxes
       const savedDays = state.pred.days || [];
       document.querySelectorAll('.pred-day').forEach(cb => {
         cb.checked = savedDays.includes(cb.value);
       });
+      // Recompute compare results before prediction (needs groups + week)
+      if (compareSlots.length) recomputeCompareResults();
       runPrediction();
+    } else if (state.week && compareSlots.length) {
+      // No prediction but have compare — still need to recompute & render
+      if (compareSlots.length) recomputeCompareResults();
+      renderHeatmap();
     } else if (!state.week) {
       renderHeatmap();
     }
